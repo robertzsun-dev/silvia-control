@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.11"
 nicegui = "^1.4.5"
 pigpio = "^1.78"
+adafruit-circuitpython-ads1x15 = "^2.2.25"
+rpi-gpio = "^0.7.1"
 
 
 [build-system]

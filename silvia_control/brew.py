@@ -1,8 +1,13 @@
 import asyncio
 from nicegui import ui
 import time
+
+from devices import Boiler
+
+
 class Brew:
-    def __init__(self):
+    def __init__(self, boiler: Boiler):
+        self._boiler = boiler
         return
 
     async def _brew(self, button: ui.button):
