@@ -96,7 +96,7 @@ class PressureSensor:
             self._adc = AnalogIn(ads, ADS.P1)
         elif channel_number == 2:
             self._adc = AnalogIn(ads, ADS.P2)
-        self._lp_filter = LowPassSinglePole(0.7)
+        self._lp_filter = LowPassSinglePole(0.4)
 
     def read_voltage(self) -> float:
         self._last_voltage = self._adc.voltage
@@ -201,13 +201,86 @@ class Boiler:
             computation_time = time.monotonic() - start_time
             await asyncio.sleep(self._period - computation_time)
 
-class Pump:
-    PUMP_PWM_PIN = 12 # Also PWM0
-    BREW_PIN = 16 # Digital Input
 
-    def __init__(self):
+class Pump:
+    PUMP_PWM_PIN = 12  # Also PWM0
+    BREW_PIN = 16  # Digital Input
+    PWM_FREQUENCY = 1000
+    PWM_RANGE = 1500
+
+    def __init__(self, pressure_sensor: PressureSensor):
+        self._pressure_sensor = pressure_sensor
         pi.set_mode(self.BREW_PIN, pigpio.INPUT)
         pi.set_pull_up_down(self.BREW_PIN, pigpio.PUD_UP)
 
+        pi.set_mode(self.PUMP_PWM_PIN, pigpio.OUTPUT)
+        pi.set_PWM_frequency(self.PUMP_PWM_PIN, self.PWM_FREQUENCY)
+        assert pi.get_PWM_frequency(self.PUMP_PWM_PIN) == self.PWM_FREQUENCY
+        pi.set_PWM_range(self.PUMP_PWM_PIN, self.PWM_RANGE)
+        pi.set_PWM_dutycycle(self.PUMP_PWM_PIN, self.PWM_RANGE)
+
+        self._period = 1.0 / 100.0
+        self._kp = 1500
+        self._kd = 250
+        self._ki = 10
+        self._last_pressure_error = 0
+        self._lp_filter_derivative = LowPassSinglePole(0.9)
+        self._integrated_pressure_error = 0
+
+        self._p_component = 0.0
+        self._i_component = 0.0
+        self._d_component = 0.0
+
+        self._target_pressure = 9.0
+
     def read_pump_state(self):
-        return pi.read(self.BREW_PIN)
+        return 1 - pi.read(self.BREW_PIN)
+
+    def set_pump_pwm(self, value):
+        if value < 0:
+            value = 0
+        if value > self.PWM_RANGE:
+            value = self.PWM_RANGE
+
+        value = self.PWM_RANGE - value
+        pi.set_PWM_dutycycle(self.PUMP_PWM_PIN, value)
+
+    @property
+    def setpoint(self):
+        return self._target_pressure
+
+    @property
+    def p_i_d_components(self):
+        return [int(self._p_component), int(self._i_component), int(self._d_component)]
+
+    async def control_loop(self):
+        while True:
+            start_time = time.monotonic()
+
+            # Compute control
+            current_pressure = self._pressure_sensor.pressure
+            pressure_error = self._target_pressure - current_pressure
+            derivative = self._lp_filter_derivative.filter((pressure_error - self._last_pressure_error) / self._period)
+            self._last_pressure_error = pressure_error
+            self._integrated_pressure_error += pressure_error
+            if self._integrated_pressure_error < 0:
+                self._integrated_pressure_error = 0
+            if self._ki * self._integrated_pressure_error > self.PWM_RANGE:
+                self._integrated_pressure_error = self.PWM_RANGE / self._ki
+
+            self._p_component = self._kp * pressure_error
+            self._d_component = self._kd * derivative
+            self._i_component = self._ki * self._integrated_pressure_error
+            u = self._p_component + self._i_component # + self._d_component
+
+            # Saturate
+            if u > self.PWM_RANGE:
+                u = self.PWM_RANGE
+            if u < 0:
+                u = 0
+
+            # Set PWM
+            self.set_pump_pwm(int(u))
+
+            computation_time = time.monotonic() - start_time
+            await asyncio.sleep(self._period - computation_time)
