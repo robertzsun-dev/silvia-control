@@ -1,24 +1,145 @@
+from enum import Enum
 import asyncio
 from nicegui import ui
 import time
 
-from devices import Boiler
+from devices import Boiler, Pump
 
 
 class Brew:
-    def __init__(self, boiler: Boiler):
+    class BrewState(Enum):
+        IDLE = 0
+        FILL = 1
+        PREINFUSE = 2
+        EXTRACTION = 3
+        FINISHED = 4
+
+    PERIOD = 1.0 / 100.0  # 100 Hz brew loop
+
+    def __init__(self, boiler: Boiler, pump: Pump):
         self._boiler = boiler
+        self._pump = pump
+        self._currently_brewing = False
+        self._current_state = self.BrewState.IDLE
+
+        self._period = self.PERIOD
         return
 
-    async def _brew(self, button: ui.button):
-        start_time = time.time()
-        for i in range(0, 500):
-            await asyncio.sleep(0.01)
-            txt = "{time:.2f}"
-            button.set_text(txt.format(time=time.time() - start_time))
+    @property
+    def currently_brewing(self):
+        return self._currently_brewing
 
-    async def brew(self, button: ui.button) -> None:
-        button.disable()
-        await self._brew(button)
-        button.enable()
-        button.set_text("Brew")
+    async def _brew(self, last_brew_data_table: ui.table, brew_data_rows: list):
+        brew_start_time = time.time()
+        fill_end_time = brew_start_time
+        preinfuse_end_time = brew_start_time
+
+        # Initialize states
+        self._current_state = self.BrewState.FILL
+        preinfuse_start_time = None
+        self._pump.reset_integrator()
+
+        # Brew Parameters
+        fill_des_pressure = 2.5
+        is_filled_pressure = 2.0
+
+        preinfuse_pressure = 0.0
+        preinfuse_time = 18.0
+
+        extraction_pressure = 9.0
+        extraction_pressure_ramp_time = 10
+
+        # Calculated Brew Parameters
+        extraction_pressure_slope = (extraction_pressure - preinfuse_pressure) / extraction_pressure_ramp_time
+
+        # Brew loop
+        while True:
+            # Loop housekeeping
+            start_time = time.monotonic()
+
+            # Brew Cycle
+            if self._current_state == self.BrewState.FILL:
+                self._pump.set_target_pressure(fill_des_pressure)
+                if self._pump.current_pressure > is_filled_pressure:
+                    self._current_state = self.BrewState.PREINFUSE
+                    fill_end_time = time.time()
+                    self._pump.reset_integrator()
+            elif self._current_state == self.BrewState.PREINFUSE:
+                if preinfuse_start_time is None:
+                    preinfuse_start_time = time.time()
+                self._pump.set_target_pressure(preinfuse_pressure)
+                if time.time() - preinfuse_start_time > preinfuse_time:
+                    self._pump.reset_integrator()
+                    self._current_state = self.BrewState.EXTRACTION
+                preinfuse_end_time = time.time()
+            elif self._current_state == self.BrewState.EXTRACTION:
+                extraction_time_elapsed = time.time() - preinfuse_end_time
+                actual_des_pressure = preinfuse_pressure + extraction_time_elapsed * extraction_pressure_slope
+                if actual_des_pressure >= extraction_pressure:
+                    actual_des_pressure = extraction_pressure
+                self._pump.set_target_pressure(actual_des_pressure)
+
+            # Brew Logs Update Display
+            txt = "{time:.2f}"
+            if len(brew_data_rows) == 0:
+                brew_data_rows.append(
+                    {'stage': 'Fill', 'logs': "0"}
+                )
+                brew_data_rows.append(
+                    {'stage': 'PreInfuse', 'logs': "0"}
+                )
+                brew_data_rows.append(
+                    {'stage': 'Extraction', 'logs': "0"}
+                )
+                brew_data_rows.append(
+                    {'stage': 'Total Time', 'logs': txt.format(time=time.time() - brew_start_time)}
+                )
+            else:
+                brew_data_rows[0] = {'stage': 'Fill', 'logs': txt.format(time=fill_end_time - brew_start_time)}
+                if preinfuse_end_time != brew_start_time:
+                    brew_data_rows[1] = {'stage': 'PreInfuse', 'logs': txt.format(time=preinfuse_end_time - fill_end_time)}
+                if preinfuse_end_time != brew_start_time:
+                    brew_data_rows[2] = {'stage': 'Extraction', 'logs': txt.format(time=time.time() - preinfuse_end_time)}
+                brew_data_rows[3] = {'stage': 'Total Time', 'logs': txt.format(time=time.time() - brew_start_time)}
+
+            last_brew_data_table.update()
+
+            # Finish Brew
+            if not self._pump.brew_state:
+                break
+
+            # Loop housekeeping
+            computation_time = time.monotonic() - start_time
+            await asyncio.sleep(self._period - computation_time)
+
+        # Finish brew
+        self._current_state = self.BrewState.FINISHED
+        self._pump.set_target_pressure(Pump.PUMP_OFF_TARGET_PRESSURE)
+
+    async def brew(self, last_brew_data_table: ui.table, brew_data_rows: list) -> None:
+        # sanity check pump state is ON
+        if not self._pump.brew_state:
+            return
+        self._currently_brewing = True
+        await self._brew(last_brew_data_table, brew_data_rows)
+        self._currently_brewing = False
+
+    async def monitor_brew_button(self, brew_status_label: ui.label, last_brew_data_table: ui.table,
+                                  brew_data_rows: list, reset_chart_callback):
+        # monitor pump loop
+        while True:
+            start_time = time.monotonic()
+
+            brew_state = self._pump.brew_state
+            if brew_state and self._current_state == self.BrewState.IDLE:
+                brew_status_label.set_text("Brewing")
+                reset_chart_callback()
+                await self.brew(last_brew_data_table, brew_data_rows)
+            elif not brew_state:
+                self._current_state = self.BrewState.IDLE
+                brew_status_label.set_text("Turn on Brew Switch to start brew")
+            else:
+                brew_status_label.set_text("Brew Complete, Turn off Brew Switch to reset brew")
+
+            computation_time = time.monotonic() - start_time
+            await asyncio.sleep(0.05 - computation_time)  # monitor every 0.05 seconds

@@ -17,7 +17,7 @@ pressure_sensor.read_pressure()
 boiler = Boiler(boiler_thermo)
 
 # Instantiate Brew Class
-brew = Brew(boiler)
+brew = Brew(boiler, pump)
 
 # Main Gauge Displays
 with ui.card():
@@ -32,8 +32,27 @@ with ui.card():
             pressure_circular = ui.circular_progress(min=0.0, max=13.0, size="6em")
             ui.label('Pressure (Bars)')
 
+
+# Brew Information
+brew_data_columns = [
+    {'name': 'stage', 'label': 'Stage', 'field': 'stage', 'required': True, 'align': 'left'},
+    {'name': 'logs', 'label': 'Logs', 'field': 'logs'},
+]
+brew_data_rows = []
+
+with ui.card():
+    with ui.row():
+        with ui.card():
+            brew_status_label = ui.label("Turn on Brew Switch to start Brew")
+    with ui.row():
+        ui.label("Last brew data:")
+    with ui.row():
+        last_brew_data_table = ui.table(columns=brew_data_columns, rows=brew_data_rows, row_key='stage')
+
+
 # Graphs
 start_time = time.time()
+ui.label("Last brew graphs:")
 with ui.tabs().classes('w-full') as tabs:
     one = ui.tab('Pressure')
     two = ui.tab('Temperature')
@@ -69,37 +88,32 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
 # Graph Update Loop
 def set_echart_values():
     global start_time
-    temp_echart.options['series'][0]['data'].append([time.time() - start_time, boiler_thermo.temperature])
-    temp_echart.options['series'][1]['data'].append([time.time() - start_time, grouphead_thermo.temperature])
-    temp_echart.options['series'][2]['data'].append([time.time() - start_time, boiler.setpoint])
+    if brew.currently_brewing:
+        temp_echart.options['series'][0]['data'].append([time.time() - start_time, boiler_thermo.temperature])
+        temp_echart.options['series'][1]['data'].append([time.time() - start_time, grouphead_thermo.temperature])
+        temp_echart.options['series'][2]['data'].append([time.time() - start_time, boiler.setpoint])
 
-    pressure_echart.options['series'][0]['data'].append([time.time() - start_time, pressure_sensor.pressure])
-    pressure_echart.options['series'][1]['data'].append([time.time() - start_time, pump.setpoint])
+        pressure_echart.options['series'][0]['data'].append([time.time() - start_time, pressure_sensor.pressure])
+        pressure_echart.options['series'][1]['data'].append([time.time() - start_time, pump.setpoint])
 
-    # Reset every 100 ticks (1000 * 0.1 = 100 secs)
-    if len(temp_echart.options['series'][0]['data']) > 1000:
-        start_time = time.time()
-        temp_echart.options['series'][0]['data'] = [[time.time() - start_time, boiler_thermo.temperature]]
-        temp_echart.options['series'][1]['data'] = [[time.time() - start_time, grouphead_thermo.temperature]]
-        temp_echart.options['series'][2]['data'] = [[time.time() - start_time, boiler.setpoint]]
+        temp_echart.update()
+        pressure_echart.update()
 
-        pressure_echart.options['series'][0]['data'] = [[time.time() - start_time, pressure_sensor.pressure]]
-        pressure_echart.options['series'][1]['data'] = [[time.time() - start_time, pump.setpoint]]
 
-    temp_echart.update()
-    pressure_echart.update()
+def reset_echart():
+    global start_time
+    start_time = time.time()
+    temp_echart.options['series'][0]['data'] = [[time.time() - start_time, boiler_thermo.temperature]]
+    temp_echart.options['series'][1]['data'] = [[time.time() - start_time, grouphead_thermo.temperature]]
+    temp_echart.options['series'][2]['data'] = [[time.time() - start_time, boiler.setpoint]]
+
+    pressure_echart.options['series'][0]['data'] = [[time.time() - start_time, pressure_sensor.pressure]]
+    pressure_echart.options['series'][1]['data'] = [[time.time() - start_time, pump.setpoint]]
 
 
 ui.timer(0.1, lambda: set_echart_values())
 
 # PID Debug Panel
-with ui.card():
-    with ui.row():
-        brew_button = ui.button('Brew', on_click=lambda e: brew.brew(e.sender))
-        brew_button.props("size=3em")
-        switch = ui.switch('AutoBrew')
-        brew_button.bind_enabled_from(switch, 'value', backward=lambda x: not x)
-
 with ui.expansion('PID Debug', icon='work').classes('w-full'):
     with ui.card():
         ui.label('Boiler PID')
@@ -149,11 +163,12 @@ ui.timer(0.1, lambda: set_pid_component_ui())
 # Instantiate Read Timers with UI (lol)
 ui.timer(READ_PERIOD, lambda: boiler_temp_circular.set_value(boiler_thermo.read_temperature()))
 ui.timer(READ_PERIOD, lambda: grouphead_temp_circular.set_value(grouphead_thermo.read_temperature()))
-ui.timer(1.0 / 100.0, lambda: pressure_circular.set_value(pressure_sensor.read_pressure()))
+ui.timer(1.0 / 200.0, lambda: pressure_circular.set_value(pressure_sensor.read_pressure()))
 ui.timer(READ_PERIOD, lambda: pump_state_circular.set_value(pump.read_pump_state()))
 
-# Control Loop
+# Control Loops
 app.on_startup(boiler.control_loop())
 app.on_startup(pump.control_loop())
+app.on_startup(brew.monitor_brew_button(brew_status_label, last_brew_data_table, brew_data_rows, reset_echart))
 
 ui.run(port=80, show=False)

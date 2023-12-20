@@ -97,7 +97,7 @@ class PressureSensor:
             self._adc = AnalogIn(ads, ADS.P1)
         elif channel_number == 2:
             self._adc = AnalogIn(ads, ADS.P2)
-        self._lp_filter = LowPassSinglePole(0.4)
+        self._lp_filter = LowPassSinglePole(0.8)
 
     def read_voltage(self) -> float:
         self._last_voltage = self._adc.voltage
@@ -208,6 +208,7 @@ class Pump:
     BREW_PIN = 16  # Digital Input
     PWM_FREQUENCY = 1000
     PWM_RANGE = 1500
+    PUMP_OFF_TARGET_PRESSURE = 0
 
     FEED_FORWARD = [[800, 1.7], [850, 2.7], [900, 3.5], [950, 4.0], [1000, 5.5], [1050, 6.2], [1100, 7.7], [1150, 8.8],
                     [1200, 9.4], [1250, 10.0], [1300, 10.3], [1350, 10.7], [1500, 11.0]]
@@ -225,7 +226,7 @@ class Pump:
 
         self._feed_forward = np.array(self.FEED_FORWARD)
 
-        self._period = 1.0 / 100.0
+        self._period = 1.0 / 200.0
         self._kp = 50
         self._kd = 0  # 20
         self._ki = 20
@@ -237,12 +238,22 @@ class Pump:
         self._i_component = 0.0
         self._d_component = 0.0
 
-        self._target_pressure = 9.0
+        self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
+        self._brew_state = 0
 
     def read_pump_state(self):
-        return 1 - pi.read(self.BREW_PIN)
+        self._brew_state = 1 - pi.read(self.BREW_PIN)
+        return self._brew_state
 
-    def set_pump_pwm(self, value):
+    @property
+    def brew_state(self):
+        return self._brew_state
+
+    @property
+    def current_pressure(self):
+        return self._pressure_sensor.pressure
+
+    def _set_pump_pwm(self, value):
         if value < 0:
             value = 0
         if value > self.PWM_RANGE:
@@ -255,9 +266,15 @@ class Pump:
     def setpoint(self):
         return self._target_pressure
 
+    def set_target_pressure(self, target_pressure):
+        self._target_pressure = target_pressure
+
     @property
     def p_i_d_components(self):
         return [int(self._p_component), int(self._i_component), int(self._d_component)]
+
+    def reset_integrator(self):
+        self._integrated_pressure_error = 0
 
     async def control_loop(self):
         while True:
@@ -287,7 +304,10 @@ class Pump:
                 u = 0
 
             # Set PWM
-            self.set_pump_pwm(int(u))
+            if self._target_pressure == self.PUMP_OFF_TARGET_PRESSURE:
+                self._set_pump_pwm(0)
+            else:
+                self._set_pump_pwm(int(u))
 
             computation_time = time.monotonic() - start_time
             await asyncio.sleep(self._period - computation_time)
