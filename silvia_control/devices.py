@@ -1,5 +1,6 @@
 import time
 import asyncio
+import numpy as np
 
 import pigpio
 import board
@@ -130,7 +131,7 @@ class PressureSensor:
 
     @staticmethod
     def voltage_to_pressure(voltage: float) -> float:
-        return 2.372 * (voltage - 0.6)
+        return 2.558 * (voltage - 0.6)
 
 
 class Boiler:
@@ -208,6 +209,9 @@ class Pump:
     PWM_FREQUENCY = 1000
     PWM_RANGE = 1500
 
+    FEED_FORWARD = [[800, 1.7], [850, 2.7], [900, 3.5], [950, 4.0], [1000, 5.5], [1050, 6.2], [1100, 7.7], [1150, 8.8],
+                    [1200, 9.4], [1250, 10.0], [1300, 10.3], [1350, 10.7], [1500, 11.0]]
+
     def __init__(self, pressure_sensor: PressureSensor):
         self._pressure_sensor = pressure_sensor
         pi.set_mode(self.BREW_PIN, pigpio.INPUT)
@@ -219,12 +223,14 @@ class Pump:
         pi.set_PWM_range(self.PUMP_PWM_PIN, self.PWM_RANGE)
         pi.set_PWM_dutycycle(self.PUMP_PWM_PIN, self.PWM_RANGE)
 
+        self._feed_forward = np.array(self.FEED_FORWARD)
+
         self._period = 1.0 / 100.0
-        self._kp = 1500
-        self._kd = 250
-        self._ki = 10
+        self._kp = 50
+        self._kd = 0  # 20
+        self._ki = 20
         self._last_pressure_error = 0
-        self._lp_filter_derivative = LowPassSinglePole(0.9)
+        self._lp_filter_derivative = LowPassSinglePole(0.98)
         self._integrated_pressure_error = 0
 
         self._p_component = 0.0
@@ -263,15 +269,16 @@ class Pump:
             derivative = self._lp_filter_derivative.filter((pressure_error - self._last_pressure_error) / self._period)
             self._last_pressure_error = pressure_error
             self._integrated_pressure_error += pressure_error
-            if self._integrated_pressure_error < 0:
-                self._integrated_pressure_error = 0
-            if self._ki * self._integrated_pressure_error > self.PWM_RANGE:
-                self._integrated_pressure_error = self.PWM_RANGE / self._ki
+            if self._ki * self._integrated_pressure_error < -600.0:
+                self._integrated_pressure_error = -100.0 / self._ki
+            if self._ki * self._integrated_pressure_error > 600.0:
+                self._integrated_pressure_error = 100.0 / self._ki
 
             self._p_component = self._kp * pressure_error
             self._d_component = self._kd * derivative
             self._i_component = self._ki * self._integrated_pressure_error
-            u = self._p_component + self._i_component # + self._d_component
+            u_ff = np.interp(self._target_pressure, self._feed_forward[:, 1], self._feed_forward[:, 0])
+            u = u_ff + self._p_component + self._i_component + self._d_component
 
             # Saturate
             if u > self.PWM_RANGE:
