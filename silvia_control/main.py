@@ -32,7 +32,6 @@ with ui.card():
             pressure_circular = ui.circular_progress(min=0.0, max=13.0, size="6em")
             ui.label('Pressure (Bars)')
 
-
 # Brew Information
 brew_data_columns = [
     {'name': 'stage', 'label': 'Stage', 'field': 'stage', 'required': True, 'align': 'left'},
@@ -49,7 +48,6 @@ with ui.card():
     with ui.row():
         last_brew_data_table = ui.table(columns=brew_data_columns, rows=brew_data_rows, row_key='stage')
 
-
 # Graphs
 start_time = time.time()
 ui.label("Last brew graphs:")
@@ -58,28 +56,32 @@ with ui.tabs().classes('w-full') as tabs:
     two = ui.tab('Temperature')
 with ui.tab_panels(tabs, value=one).classes('w-full'):
     with ui.tab_panel(one):
+        current_time = time.time()
         pressure_echart = ui.echart({
-            'xAxis': {'type': 'value'},
-            'yAxis': {'type': 'value'},
+            'tooltip': {'trigger': 'axis'},
+            'xAxis': {'type': 'value', 'name': 'Time (s)'},
+            'yAxis': {'type': 'value', 'name': 'Pressure (Bars)'},
             'legend': {'textStyle': {'color': 'gray'}},
             'series': [
-                {'type': 'line', 'data': [[time.time() - start_time, pressure_sensor.pressure]],
+                {'type': 'line', 'data': [[0, pressure_sensor.pressure]],
                  'name': 'Pressure', 'smooth': "true", "symbol": "none"},
-                {'type': 'line', 'data': [[time.time() - start_time, pump.setpoint]],
+                {'type': 'line', 'data': [[0, pump.setpoint]],
                  'name': 'Target Pressure', 'smooth': "true", "symbol": "none"}
             ],
         })
     with ui.tab_panel(two):
+        current_time = time.time()
         temp_echart = ui.echart({
-            'xAxis': {'type': 'value'},
-            'yAxis': {'type': 'value'},
+            'tooltip': {'trigger': 'axis'},
+            'xAxis': {'type': 'value', 'name': 'Time (s)'},
+            'yAxis': {'type': 'value', 'name': 'Temperature (C)'},
             'legend': {'textStyle': {'color': 'gray'}},
             'series': [
-                {'type': 'line', 'data': [[time.time() - start_time, boiler_thermo.temperature]],
+                {'type': 'line', 'data': [[0, boiler_thermo.temperature]],
                  'name': 'Boiler Temp', 'smooth': "true", "symbol": "none"},
-                {'type': 'line', 'data': [[time.time() - start_time, grouphead_thermo.temperature]],
+                {'type': 'line', 'data': [[0, grouphead_thermo.temperature]],
                  'name': 'Grouphead Temp', 'smooth': "true", "symbol": "none"},
-                {'type': 'line', 'data': [[time.time() - start_time, boiler.setpoint]],
+                {'type': 'line', 'data': [[0, boiler.setpoint]],
                  'name': 'Target Temp', 'smooth': "true", "symbol": "none"}
             ],
         })
@@ -89,12 +91,13 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
 def set_echart_values():
     global start_time
     if brew.currently_brewing:
-        temp_echart.options['series'][0]['data'].append([time.time() - start_time, boiler_thermo.temperature])
-        temp_echart.options['series'][1]['data'].append([time.time() - start_time, grouphead_thermo.temperature])
-        temp_echart.options['series'][2]['data'].append([time.time() - start_time, boiler.setpoint])
+        current_time = time.time()
+        temp_echart.options['series'][0]['data'].append([current_time - start_time, boiler_thermo.temperature])
+        temp_echart.options['series'][1]['data'].append([current_time - start_time, grouphead_thermo.temperature])
+        temp_echart.options['series'][2]['data'].append([current_time - start_time, boiler.setpoint])
 
-        pressure_echart.options['series'][0]['data'].append([time.time() - start_time, pressure_sensor.pressure])
-        pressure_echart.options['series'][1]['data'].append([time.time() - start_time, pump.setpoint])
+        pressure_echart.options['series'][0]['data'].append([current_time - start_time, pressure_sensor.pressure])
+        pressure_echart.options['series'][1]['data'].append([current_time - start_time, pump.setpoint])
 
         temp_echart.update()
         pressure_echart.update()
@@ -103,12 +106,12 @@ def set_echart_values():
 def reset_echart():
     global start_time
     start_time = time.time()
-    temp_echart.options['series'][0]['data'] = [[time.time() - start_time, boiler_thermo.temperature]]
-    temp_echart.options['series'][1]['data'] = [[time.time() - start_time, grouphead_thermo.temperature]]
-    temp_echart.options['series'][2]['data'] = [[time.time() - start_time, boiler.setpoint]]
+    temp_echart.options['series'][0]['data'] = [[0, boiler_thermo.temperature]]
+    temp_echart.options['series'][1]['data'] = [[0, grouphead_thermo.temperature]]
+    temp_echart.options['series'][2]['data'] = [[0, boiler.setpoint]]
 
-    pressure_echart.options['series'][0]['data'] = [[time.time() - start_time, pressure_sensor.pressure]]
-    pressure_echart.options['series'][1]['data'] = [[time.time() - start_time, pump.setpoint]]
+    pressure_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
+    pressure_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
 
 
 ui.timer(0.1, lambda: set_echart_values())

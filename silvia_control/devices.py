@@ -151,6 +151,7 @@ class Boiler:
         self._period = 1.0 / 5.0
         self._kp = 200
         self._kd = 2500
+        # self._kd = 1500
         self._ki = 0.05
         self._last_temp_error = 0
         self._lp_filter_derivative = LowPassSinglePole(0.9)
@@ -160,11 +161,14 @@ class Boiler:
         self._i_component = 0.0
         self._d_component = 0.0
 
-        self._target_temperature = 98
+        self._target_temperature = 93 + 5
 
     @property
     def setpoint(self):
         return self._target_temperature
+
+    def set_target_temp(self, temp):
+        self._target_temperature = temp
 
     @property
     def p_i_d_components(self):
@@ -209,6 +213,7 @@ class Pump:
     PWM_FREQUENCY = 1000
     PWM_RANGE = 1500
     PUMP_OFF_TARGET_PRESSURE = 0
+    PUMP_FILL_TARGET_PRESSURE = -1
 
     FEED_FORWARD = [[800, 1.7], [850, 2.7], [900, 3.5], [950, 4.0], [1000, 5.5], [1050, 6.2], [1100, 7.7], [1150, 8.8],
                     [1200, 9.4], [1250, 10.0], [1300, 10.3], [1350, 10.7], [1500, 11.0]]
@@ -227,9 +232,9 @@ class Pump:
         self._feed_forward = np.array(self.FEED_FORWARD)
 
         self._period = 1.0 / 200.0
-        self._kp = 50
+        self._kp = 100
         self._kd = 0  # 20
-        self._ki = 20
+        self._ki = 30
         self._last_pressure_error = 0
         self._lp_filter_derivative = LowPassSinglePole(0.98)
         self._integrated_pressure_error = 0
@@ -286,10 +291,21 @@ class Pump:
             derivative = self._lp_filter_derivative.filter((pressure_error - self._last_pressure_error) / self._period)
             self._last_pressure_error = pressure_error
             self._integrated_pressure_error += pressure_error
+
+            # Don't integrate negative pressure if current pressure in < 4.5.
+            # There's nothing the machine can do to alleviate that pressure, so building up integration error is useless
+            if (current_pressure < 1.5 or self._target_pressure < 1.5) and self._integrated_pressure_error < 0:
+                self._integrated_pressure_error = 0
+
+            # Saturate Integrator
             if self._ki * self._integrated_pressure_error < -600.0:
-                self._integrated_pressure_error = -100.0 / self._ki
+                self._integrated_pressure_error = -600.0 / self._ki
             if self._ki * self._integrated_pressure_error > 600.0:
-                self._integrated_pressure_error = 100.0 / self._ki
+                self._integrated_pressure_error = 600.0 / self._ki
+
+            # Clear Integrator if target pressure reached
+            # if abs(pressure_error) < 0.1:
+            #     self._integrated_pressure_error *= 0.8
 
             self._p_component = self._kp * pressure_error
             self._d_component = self._kd * derivative
@@ -306,6 +322,8 @@ class Pump:
             # Set PWM
             if self._target_pressure == self.PUMP_OFF_TARGET_PRESSURE:
                 self._set_pump_pwm(0)
+            elif self._target_pressure == self.PUMP_FILL_TARGET_PRESSURE:
+                self._set_pump_pwm(1100)
             else:
                 self._set_pump_pwm(int(u))
 
