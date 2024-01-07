@@ -160,6 +160,7 @@ class Boiler:
         self._p_component = 0.0
         self._i_component = 0.0
         self._d_component = 0.0
+        self._u = 0.0
 
         self._target_temperature = 93 + 5
 
@@ -171,8 +172,12 @@ class Boiler:
         self._target_temperature = temp
 
     @property
+    def current_u(self):
+        return self._u
+
+    @property
     def p_i_d_components(self):
-        return [int(self._p_component), int(self._i_component), int(self._d_component)]
+        return [int(self._p_component), int(self._i_component), int(self._d_component), int(self._u)]
 
     async def control_loop(self):
         while True:
@@ -201,6 +206,7 @@ class Boiler:
                 u = 0
 
             # Set PWM
+            self._u = u
             pi.set_PWM_dutycycle(self.BOILER_PIN, int(u))
 
             computation_time = time.monotonic() - start_time
@@ -214,6 +220,7 @@ class Pump:
     PWM_RANGE = 1500
     PUMP_OFF_TARGET_PRESSURE = 0
     PUMP_FILL_TARGET_PRESSURE = -1
+    PUMP_FULL_ON = -2
 
     FEED_FORWARD = [[800, 1.7], [850, 2.7], [900, 3.5], [950, 4.0], [1000, 5.5], [1050, 6.2], [1100, 7.7], [1150, 8.8],
                     [1200, 9.4], [1250, 10.0], [1300, 10.3], [1350, 10.7], [1500, 11.0]]
@@ -242,6 +249,7 @@ class Pump:
         self._p_component = 0.0
         self._i_component = 0.0
         self._d_component = 0.0
+        self._u = 0.0
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
         self._brew_state = 0
@@ -257,6 +265,10 @@ class Pump:
     @property
     def current_pressure(self):
         return self._pressure_sensor.pressure
+
+    @property
+    def current_u(self):
+        return self._u
 
     def _set_pump_pwm(self, value):
         if value < 0:
@@ -276,7 +288,7 @@ class Pump:
 
     @property
     def p_i_d_components(self):
-        return [int(self._p_component), int(self._i_component), int(self._d_component)]
+        return [int(self._p_component), int(self._i_component), int(self._d_component), int(self._u)]
 
     def reset_integrator(self):
         self._integrated_pressure_error = 0
@@ -321,10 +333,16 @@ class Pump:
 
             # Set PWM
             if self._target_pressure == self.PUMP_OFF_TARGET_PRESSURE:
+                self._u = 0.0
                 self._set_pump_pwm(0)
             elif self._target_pressure == self.PUMP_FILL_TARGET_PRESSURE:
+                self._u = 1100
                 self._set_pump_pwm(1100)
+            elif self._target_pressure == self.PUMP_FULL_ON:
+                self._u = self.PWM_RANGE
+                self._set_pump_pwm(self.PWM_RANGE)
             else:
+                self._u = u
                 self._set_pump_pwm(int(u))
 
             computation_time = time.monotonic() - start_time

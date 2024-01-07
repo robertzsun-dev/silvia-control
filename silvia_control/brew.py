@@ -46,22 +46,56 @@ class Brew:
         self._pump.reset_integrator()
         brew_data_rows.clear()
 
-        # Brew Parameters (Trad'l Lever)
+        # Brew Parameters (Cleaning)
+        # target_temperature = 93
+        #
+        # fill_des_pressure = Pump.PUMP_FULL_ON
+        # is_filled_pressure = 15.0
+        #
+        # preinfuse_pressure = 11.0
+        # preinfuse_time = 0.0
+        #
+        # extraction_pressure = 11.0
+        # extraction_pressure_ramp_time = 0.5
+        #
+        # extraction_hold_time = 30.0
+        #
+        # extraction_ramp_down_pressure = 11.0
+        # extraction_ramp_down_time = 0.5
+
+        # Brew Parameters (Londinium)
         target_temperature = 93
 
         fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
         is_filled_pressure = 3.0
 
         preinfuse_pressure = 3.0
-        preinfuse_time = 7.0
+        preinfuse_time = 12.0
 
         extraction_pressure = 9.0
-        extraction_pressure_ramp_time = 4.0
+        extraction_pressure_ramp_time = 2.0
 
-        extraction_hold_time = 5.0
+        extraction_hold_time = 3.0
 
-        extraction_ramp_down_pressure = 0
-        extraction_ramp_down_time = 27
+        extraction_ramp_down_pressure = 5
+        extraction_ramp_down_time = 20
+
+        # Brew Parameters (Flat 9)
+        # target_temperature = 93
+        #
+        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
+        # is_filled_pressure = 0.0
+        #
+        # preinfuse_pressure = 0.0
+        # preinfuse_time = 0.0
+        #
+        # extraction_pressure = 9.0
+        # extraction_pressure_ramp_time = 2.0
+        #
+        # extraction_hold_time = 120.0
+        #
+        # extraction_ramp_down_pressure = 9
+        # extraction_ramp_down_time = 20
 
         # Brew Parameters (Blooming)
         # target_temperature = 94
