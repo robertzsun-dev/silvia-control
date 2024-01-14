@@ -7,39 +7,59 @@ import time
 from devices import Boiler, Pump, FlowSensor
 
 
+class BrewState(Enum):
+    IDLE = 0
+    BREWING = 2
+    FINISHED = 3
+
+
+class TransitionType(Enum):
+    NONE = 0
+    PRESSURE_OVER = 1
+    PRESSURE_UNDER = 2
+    FLOW_OVER = 3
+    FLOW_UNDER = 4
+
+
+class TargetType(Enum):
+    PRESSURE = 0
+    FLOW = 1
+    FILL = 2
+    FLOW_WITH_PRESSURE_LIMIT = 3  # uses previous stage's pressure as limit
+
+
+@dataclass
+class BrewStage:
+    target_temperature: float
+    target_type: TargetType
+    target: float
+    ramp_time: float
+    maximum_time: float
+    transition_type: TransitionType
+    transition_parameter: float
+    name: str
+
+    def __init__(self, target_temperature: float, target_type: TargetType, target: float, ramp_time: float,
+                 maximum_time: float, transition_type: TransitionType, transition_parameter: float, name: str):
+        self.target_temperature = target_temperature
+        self.target_type = target_type
+        self.target = target
+        self.ramp_time = ramp_time
+        self.maximum_time = maximum_time
+        self.transition_type = transition_type
+        self.transition_parameter = transition_parameter
+        self.name = name
+
+
 class Brew:
-    class BrewState(Enum):
-        IDLE = 0
-        FILL = 1
-        PREINFUSE = 2
-        EXTRACTION_RAMP = 3
-        EXTRACTION_HOLD = 4
-        EXTRACTION_RAMP_DOWN = 5
-        FINISHED = 6
-
     PERIOD = 1.0 / 100.0  # 100 Hz brew loop
-
-    class TransitionType(Enum):
-        PRESSURE_OVER = 0
-        PRESSURE_UNDER = 1
-        FLOW_OVER = 2
-        FLOW_UNDER = 3
-
-    @dataclass
-    class BrewStage:
-        pressure: float
-        flow: float
-        ramp_time: float
-        maximum_time: float
-        transition_type: Brew.TransitionType
-        transition_parameter: float
 
     def __init__(self, boiler: Boiler, pump: Pump, flow_sensor: FlowSensor):
         self._boiler = boiler
         self._pump = pump
         self._flow_sensor = flow_sensor
         self._currently_brewing = False
-        self._current_state = self.BrewState.IDLE
+        self._current_state = BrewState.IDLE
 
         self._period = self.PERIOD
         return
@@ -65,129 +85,6 @@ class Brew:
         brew_data_rows.clear()
 
         preinfuse_method = 0
-
-        # Brew Parameters (Cleaning)
-        # target_temperature = 93
-        #
-        # fill_des_pressure = Pump.PUMP_FULL_ON
-        # is_filled_pressure = 15.0
-        #
-        # preinfuse_pressure = 11.0
-        # preinfuse_time = 0.0
-        #
-        # extraction_pressure = 11.0
-        # extraction_pressure_ramp_time = 0.5
-        #
-        # extraction_hold_time = 30.0
-        #
-        # extraction_ramp_down_pressure = 11.0
-        # extraction_ramp_down_time = 0.5
-
-        # Brew Parameters (Lever)
-        # target_temperature = 93
-        #
-        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        # is_filled_pressure = 3.0
-        #
-        # preinfuse_pressure = 2.0
-        # preinfuse_time = 4
-        #
-        # extraction_pressure = 9.0
-        # extraction_pressure_ramp_time = 2.0
-        #
-        # extraction_hold_time = 4.0
-        #
-        # extraction_ramp_down_pressure = 0
-        # extraction_ramp_down_time = 27.5
-
-        # Brew Parameters (LRv3)
-        target_temperature = 93
-        preinfuse_method = 1
-
-        fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        is_filled_pressure = 2.0
-
-        preinfuse_pressure = 3.0
-        preinfuse_time = 12
-
-        extraction_pressure = 9.0
-        extraction_pressure_ramp_time = 2.0
-
-        extraction_hold_time = 30.0
-        extraction_transition_flow = 1.9  # mL/s
-
-        extraction_ramp_down_pressure = 5.5
-        extraction_ramp_down_time = 35
-        extraction_ramp_down_transition_flow = 2.8  # mL/s
-
-        final_flow_goal = 2.2  # mL/s
-
-        # Brew Parameters (Extractamundo Dos)
-        # target_temperature = 93
-        # preinfuse_method = 0
-        #
-        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        # is_filled_pressure = 4.5
-        #
-        # preinfuse_pressure = 2.2
-        # preinfuse_time = 40
-        #
-        # extraction_pressure = 6.0
-        # extraction_pressure_ramp_time = 0.0
-        #
-        # extraction_hold_time = 60.0
-        # extraction_flow_limit = 1.0 + 3.0  # ml/S limiter??
-
-        # Brew Parameters (Flat 9)
-        # target_temperature = 93
-        #
-        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        # is_filled_pressure = 0.0
-        #
-        # preinfuse_pressure = 0.0
-        # preinfuse_time = 0.0
-        #
-        # extraction_pressure = 9.0
-        # extraction_pressure_ramp_time = 2.0
-        #
-        # extraction_hold_time = 120.0
-        #
-        # extraction_ramp_down_pressure = 9
-        # extraction_ramp_down_time = 20
-
-        # Brew Parameters (Blooming)
-        # target_temperature = 94
-        #
-        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        # is_filled_pressure = 3.0
-        #
-        # preinfuse_pressure = 0.0
-        # preinfuse_time = 20.0
-        #
-        # extraction_pressure = 9.0
-        # extraction_pressure_ramp_time = 5.0
-        #
-        # extraction_hold_time = 5.0
-        #
-        # extraction_ramp_down_pressure = 5
-        # extraction_ramp_down_time = 6
-
-        # # # Brew Parameters (Turbo)
-        # target_temperature = 94
-        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        # is_filled_pressure = 3.0
-        #
-        # preinfuse_pressure = 6.0
-        # preinfuse_time = 0.0
-        #
-        # self._current_state = self.BrewState.EXTRACTION_RAMP
-        # extraction_pressure = 6.0
-        # extraction_pressure_ramp_time = 0.5
-        #
-        # extraction_hold_time = 15.0
-        #
-        # extraction_ramp_down_pressure = 6.0
-        # extraction_ramp_down_time = 0.5
 
         # Calculated Brew Parameters
         extraction_ramp_up_pressure_slope = ((extraction_pressure - preinfuse_pressure) /

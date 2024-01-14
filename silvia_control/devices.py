@@ -309,8 +309,9 @@ class Pump:
     FEED_FORWARD = [[800, 1.7], [850, 2.7], [900, 3.5], [950, 4.0], [1000, 5.5], [1050, 6.2], [1100, 7.7], [1150, 8.8],
                     [1200, 9.4], [1250, 10.0], [1300, 10.3], [1350, 10.7], [1500, 11.0]]
 
-    def __init__(self, pressure_sensor: PressureSensor):
+    def __init__(self, pressure_sensor: PressureSensor, flow_sensor: FlowSensor):
         self._pressure_sensor = pressure_sensor
+        self._flow_sensor = flow_sensor
         pi.set_mode(self.BREW_PIN, pigpio.INPUT)
         pi.set_pull_up_down(self.BREW_PIN, pigpio.PUD_UP)
 
@@ -336,6 +337,17 @@ class Pump:
         self._u = 0.0
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
+
+        self._kp_flow = 100
+        self._kd_flow = 0  # 20
+        self._ki_flow = 30
+        self._last_flow_error = 0
+        self._lp_filter_flow_derivative = LowPassSinglePole(0.98)
+        self._integrated_flow_error = 0
+
+        self._target_flow = 0.0
+        self._flow_mode = False
+
         self._brew_state = 0
 
     def read_pump_state(self):
@@ -367,8 +379,18 @@ class Pump:
     def setpoint(self):
         return self._target_pressure
 
+    @property
+    def setpoint_flow(self):
+        return self._target_flow
+
     def set_target_pressure(self, target_pressure):
         self._target_pressure = target_pressure
+
+    def set_target_flow(self, target_flow):
+        self._target_flow = target_flow
+
+    def set_flow_mode(self, flow=False):
+        self._flow_mode = flow
 
     @property
     def p_i_d_components(self):
@@ -380,8 +402,11 @@ class Pump:
     async def control_loop(self):
         while True:
             start_time = time.monotonic()
+            # Compute control for flow
+            current_flow = self._flow_sensor.get_filtered_flow
+            flow_error = self._target_flow - current_flow
 
-            # Compute control
+            # Compute control for pressure
             current_pressure = self._pressure_sensor.pressure
             pressure_error = self._target_pressure - current_pressure
             derivative = self._lp_filter_derivative.filter((pressure_error - self._last_pressure_error) / self._period)
