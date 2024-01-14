@@ -90,7 +90,9 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                 {'type': 'line', 'yAxisIndex': 0, 'data': [[0, flow_sensor.get_ml]],
                  'name': 'Total Volume', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'yAxisIndex': 1, 'data': [[0, flow_sensor.get_filtered_flow]],
-                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"}
+                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 1, 'data': [[0, pump.setpoint_flow]],
+                 'name': 'Target Flow Rate', 'smooth': "true", "symbol": "none"}
             ],
         })
     with ui.tab_panel(two):
@@ -125,7 +127,9 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                 {'type': 'line', 'yAxisIndex': 2, 'data': [[0, flow_sensor.get_ml]],
                  'name': 'Total Volume', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'yAxisIndex': 3, 'data': [[0, flow_sensor.get_filtered_flow]],
-                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"}
+                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 3, 'data': [[0, pump.setpoint_flow]],
+                 'name': 'Target Flow Rate', 'smooth': "true", "symbol": "none"}
             ],
         })
 
@@ -148,12 +152,14 @@ def set_echart_values():
 
         flow_echart.options['series'][0]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
         flow_echart.options['series'][1]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+        flow_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.setpoint_flow])
 
         combined_echart.options['series'][0]['data'].append([new_point_time - start_time, pressure_sensor.pressure])
         combined_echart.options['series'][1]['data'].append([new_point_time - start_time, pump.setpoint])
         combined_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.current_u])
         combined_echart.options['series'][3]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
         combined_echart.options['series'][4]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+        combined_echart.options['series'][5]['data'].append([new_point_time - start_time, pump.setpoint_flow])
 
         if counter == 0:
             temp_echart.update()
@@ -184,12 +190,14 @@ def reset_echart():
 
     flow_echart.options['series'][0]['data'] = [[0, flow_sensor.get_ml]]
     flow_echart.options['series'][1]['data'] = [[0, flow_sensor.get_raw_flow]]
+    flow_echart.options['series'][2]['data'] = [[0, pump.setpoint_flow]]
 
     combined_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
     combined_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
     combined_echart.options['series'][2]['data'] = [[0, pump.current_u]]
     combined_echart.options['series'][3]['data'] = [[0, flow_sensor.get_ml]]
     combined_echart.options['series'][4]['data'] = [[0, flow_sensor.get_raw_flow]]
+    combined_echart.options['series'][5]['data'] = [[0, pump.setpoint_flow]]
 
 
 ui.timer(0.1, lambda: set_echart_values())
