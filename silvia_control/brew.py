@@ -1,9 +1,10 @@
 from enum import Enum
+from dataclasses import dataclass
 import asyncio
 from nicegui import ui
 import time
 
-from devices import Boiler, Pump
+from devices import Boiler, Pump, FlowSensor
 
 
 class Brew:
@@ -18,9 +19,25 @@ class Brew:
 
     PERIOD = 1.0 / 100.0  # 100 Hz brew loop
 
-    def __init__(self, boiler: Boiler, pump: Pump):
+    class TransitionType(Enum):
+        PRESSURE_OVER = 0
+        PRESSURE_UNDER = 1
+        FLOW_OVER = 2
+        FLOW_UNDER = 3
+
+    @dataclass
+    class BrewStage:
+        pressure: float
+        flow: float
+        ramp_time: float
+        maximum_time: float
+        transition_type: Brew.TransitionType
+        transition_parameter: float
+
+    def __init__(self, boiler: Boiler, pump: Pump, flow_sensor: FlowSensor):
         self._boiler = boiler
         self._pump = pump
+        self._flow_sensor = flow_sensor
         self._currently_brewing = False
         self._current_state = self.BrewState.IDLE
 
@@ -44,7 +61,10 @@ class Brew:
         preinfuse_start_time = None
         extraction_hold_start_time = None
         self._pump.reset_integrator()
+        self._flow_sensor.reset_ticks()
         brew_data_rows.clear()
+
+        preinfuse_method = 0
 
         # Brew Parameters (Cleaning)
         # target_temperature = 93
@@ -63,22 +83,60 @@ class Brew:
         # extraction_ramp_down_pressure = 11.0
         # extraction_ramp_down_time = 0.5
 
-        # Brew Parameters (Londinium)
+        # Brew Parameters (Lever)
+        # target_temperature = 93
+        #
+        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
+        # is_filled_pressure = 3.0
+        #
+        # preinfuse_pressure = 2.0
+        # preinfuse_time = 4
+        #
+        # extraction_pressure = 9.0
+        # extraction_pressure_ramp_time = 2.0
+        #
+        # extraction_hold_time = 4.0
+        #
+        # extraction_ramp_down_pressure = 0
+        # extraction_ramp_down_time = 27.5
+
+        # Brew Parameters (LRv3)
         target_temperature = 93
+        preinfuse_method = 1
 
         fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
-        is_filled_pressure = 3.0
+        is_filled_pressure = 2.0
 
         preinfuse_pressure = 3.0
-        preinfuse_time = 12.0
+        preinfuse_time = 12
 
         extraction_pressure = 9.0
         extraction_pressure_ramp_time = 2.0
 
-        extraction_hold_time = 3.0
+        extraction_hold_time = 30.0
+        extraction_transition_flow = 1.9  # mL/s
 
-        extraction_ramp_down_pressure = 5
-        extraction_ramp_down_time = 20
+        extraction_ramp_down_pressure = 5.5
+        extraction_ramp_down_time = 35
+        extraction_ramp_down_transition_flow = 2.8  # mL/s
+
+        final_flow_goal = 2.2  # mL/s
+
+        # Brew Parameters (Extractamundo Dos)
+        # target_temperature = 93
+        # preinfuse_method = 0
+        #
+        # fill_des_pressure = Pump.PUMP_FILL_TARGET_PRESSURE
+        # is_filled_pressure = 4.5
+        #
+        # preinfuse_pressure = 2.2
+        # preinfuse_time = 40
+        #
+        # extraction_pressure = 6.0
+        # extraction_pressure_ramp_time = 0.0
+        #
+        # extraction_hold_time = 60.0
+        # extraction_flow_limit = 1.0 + 3.0  # ml/S limiter??
 
         # Brew Parameters (Flat 9)
         # target_temperature = 93
@@ -136,6 +194,7 @@ class Brew:
                                              extraction_pressure_ramp_time)
         extraction_ramp_down_pressure_slope = ((extraction_pressure - extraction_ramp_down_pressure) /
                                                extraction_ramp_down_time)
+        self._boiler.set_turbo(True)
 
         # Brew loop
         while True:
@@ -154,10 +213,16 @@ class Brew:
             elif self._current_state == self.BrewState.PREINFUSE:
                 if preinfuse_start_time is None:
                     preinfuse_start_time = time.time()
-                self._pump.set_target_pressure(preinfuse_pressure)
-                if time.time() - preinfuse_start_time > preinfuse_time:
-                    self._pump.reset_integrator()
-                    self._current_state = self.BrewState.EXTRACTION_RAMP
+                if preinfuse_method == 0:
+                    self._pump.set_target_pressure(self._pump.PUMP_OFF_TARGET_PRESSURE)
+                    if time.time() - preinfuse_start_time > preinfuse_time or self._pump.current_pressure < preinfuse_pressure:
+                        self._pump.reset_integrator()
+                        self._current_state = self.BrewState.EXTRACTION_RAMP
+                elif preinfuse_method == 1:
+                    self._pump.set_target_pressure(preinfuse_pressure)
+                    if time.time() - preinfuse_start_time > preinfuse_time:
+                        self._pump.reset_integrator()
+                        self._current_state = self.BrewState.EXTRACTION_RAMP
                 preinfuse_end_time = time.time()
             elif self._current_state == self.BrewState.EXTRACTION_RAMP:
                 extraction_ramp_up_time_elapsed = time.time() - preinfuse_end_time
@@ -235,6 +300,7 @@ class Brew:
         # Finish brew
         self._current_state = self.BrewState.FINISHED
         self._pump.set_target_pressure(Pump.PUMP_OFF_TARGET_PRESSURE)
+        self._boiler.set_turbo(False)
         self._boiler.set_target_temp(93 + 5)
 
     async def brew(self, last_brew_data_table: ui.table, brew_data_rows: list) -> None:

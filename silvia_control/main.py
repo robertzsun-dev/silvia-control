@@ -1,13 +1,15 @@
 import asyncio
 import time
 from nicegui import app, ui
-from devices import Thermocouple, PressureSensor, Boiler, Pump, READ_PERIOD
+from devices import Thermocouple, FlowSensor, PressureSensor, Boiler, Pump, READ_PERIOD
 from brew import Brew
 
 # Instantiate Devices
 boiler_thermo = Thermocouple(1, offset=-7)
 grouphead_thermo = Thermocouple(0)
 pressure_sensor = PressureSensor(2)
+flow_sensor = FlowSensor(23)
+
 pump = Pump(pressure_sensor)
 boiler_thermo.read_temperature()
 grouphead_thermo.read_temperature()
@@ -17,7 +19,7 @@ pressure_sensor.read_pressure()
 boiler = Boiler(boiler_thermo)
 
 # Instantiate Brew Class
-brew = Brew(boiler, pump)
+brew = Brew(boiler, pump, flow_sensor)
 
 # Main Gauge Displays
 with ui.card():
@@ -54,6 +56,7 @@ ui.label("Last brew graphs:")
 with ui.tabs().classes('w-full') as tabs:
     one = ui.tab('Pressure')
     two = ui.tab('Temperature')
+    three = ui.tab('Combined')
 with ui.tab_panels(tabs, value=one).classes('w-full'):
     with ui.tab_panel(one):
         pressure_echart = ui.echart({
@@ -68,6 +71,18 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                  'name': 'Target Pressure', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'yAxisIndex': 1, 'data': [[0, pump.current_u]],
                  'name': 'Pump U', 'smooth': "true", "symbol": "none"}
+            ],
+        })
+        flow_echart = ui.echart({
+            'tooltip': {'trigger': 'axis'},
+            'xAxis': {'type': 'value', 'name': '', 'axisLabel': {'formatter': '{value} s'}},
+            'yAxis': [{'type': 'value', 'name': 'Total Volume'}, {'type': 'value', 'name': 'Flow Rate'}],
+            'legend': {'textStyle': {'color': 'gray'}},
+            'series': [
+                {'type': 'line', 'yAxisIndex': 0, 'data': [[0, flow_sensor.get_ml]],
+                 'name': 'Total Volume', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 1, 'data': [[0, flow_sensor.get_filtered_flow]],
+                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"}
             ],
         })
     with ui.tab_panel(two):
@@ -85,11 +100,34 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                  'name': 'Target Temp', 'smooth': "true", "symbol": "none"}
             ],
         })
-
+    with ui.tab_panel(three):
+        combined_echart = ui.echart({
+            'tooltip': {'trigger': 'axis'},
+            'xAxis': {'type': 'value', 'name': '', 'axisLabel': {'formatter': '{value} s'}},
+            'yAxis': [{'type': 'value', 'name': 'Pressure (Bars)'}, {'type': 'value', 'name': 'Pump U'},
+                      {'type': 'value', 'name': 'Total Volume'}, {'type': 'value', 'name': 'Flow Rate'}],
+            'legend': {'textStyle': {'color': 'gray'}},
+            'series': [
+                {'type': 'line', 'data': [[0, pressure_sensor.pressure]],
+                 'name': 'Pressure', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'data': [[0, pump.setpoint]],
+                 'name': 'Target Pressure', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 1, 'data': [[0, pump.current_u]],
+                 'name': 'Pump U', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 2, 'data': [[0, flow_sensor.get_ml]],
+                 'name': 'Total Volume', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 3, 'data': [[0, flow_sensor.get_filtered_flow]],
+                 'name': 'Flow Rate', 'smooth': "true", "symbol": "none"}
+            ],
+        })
 
 # Graph Update Loop
+counter = 0
+
+
 def set_echart_values():
     global start_time
+    global counter
     if brew.currently_brewing:
         new_point_time = time.time()
         temp_echart.options['series'][0]['data'].append([new_point_time - start_time, boiler_thermo.temperature])
@@ -100,8 +138,29 @@ def set_echart_values():
         pressure_echart.options['series'][1]['data'].append([new_point_time - start_time, pump.setpoint])
         pressure_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.current_u])
 
-        temp_echart.update()
-        pressure_echart.update()
+        flow_echart.options['series'][0]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
+        flow_echart.options['series'][1]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+
+        combined_echart.options['series'][0]['data'].append([new_point_time - start_time, pressure_sensor.pressure])
+        combined_echart.options['series'][1]['data'].append([new_point_time - start_time, pump.setpoint])
+        combined_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.current_u])
+        combined_echart.options['series'][3]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
+        combined_echart.options['series'][4]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+
+        if counter == 0:
+            temp_echart.update()
+            counter += 1
+        elif counter == 1:
+            pressure_echart.update()
+            counter += 1
+        elif counter == 2:
+            flow_echart.update()
+            counter += 1
+        elif counter == 3:
+            combined_echart.update()
+            counter += 1
+        else:
+            counter = 0
 
 
 def reset_echart():
@@ -114,6 +173,16 @@ def reset_echart():
     pressure_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
     pressure_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
     pressure_echart.options['series'][2]['data'] = [[0, pump.current_u]]
+
+    flow_echart.options['series'][0]['data'] = [[0, flow_sensor.get_ml]]
+    flow_echart.options['series'][1]['data'] = [[0, flow_sensor.get_raw_flow]]
+
+    combined_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
+    combined_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
+    combined_echart.options['series'][2]['data'] = [[0, pump.current_u]]
+    combined_echart.options['series'][3]['data'] = [[0, flow_sensor.get_ml]]
+    combined_echart.options['series'][4]['data'] = [[0, flow_sensor.get_raw_flow]]
+
 
 ui.timer(0.1, lambda: set_echart_values())
 
@@ -168,6 +237,7 @@ ui.timer(0.1, lambda: set_pid_component_ui())
 ui.timer(READ_PERIOD, lambda: boiler_temp_circular.set_value(boiler_thermo.read_temperature()))
 ui.timer(READ_PERIOD, lambda: grouphead_temp_circular.set_value(grouphead_thermo.read_temperature()))
 ui.timer(1.0 / 200.0, lambda: pressure_circular.set_value(pressure_sensor.read_pressure()))
+ui.timer(1.0 / 200.0, lambda: flow_sensor.filter_flow_rate())
 ui.timer(READ_PERIOD, lambda: pump_state_circular.set_value(pump.read_pump_state()))
 
 # Control Loops

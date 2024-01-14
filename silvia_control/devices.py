@@ -83,6 +83,81 @@ class Thermocouple:
         return (50.0 * (40.0 * voltage - 11.0 * INPUT_VOLTAGE) / (9 * INPUT_VOLTAGE)) + self._offset
 
 
+class FlowSensor:
+    FLOW_SENSOR_PIN = 23
+    CALIBRATION = 3.392  # 3.392 Pulses / milliliter
+    INV_CALIBRATION = 1.0 / CALIBRATION  # 0.519 mL / Pulse
+    _lp_filter: LowPassSinglePole = None
+
+    def __init__(self, pin):
+        self.ticks = 0.0  # The number of encoder ticks
+        self.last_tick = None  # The timestamp of the last tick
+        self.last_level = None  # The level of the last tick
+
+        pi.set_mode(pin, pigpio.INPUT)
+
+        pi.set_pull_up_down(pin, pigpio.PUD_OFF)
+
+        self.cb = pi.callback(pin, pigpio.EITHER_EDGE, self._pulse)
+
+        self._raw_flow = 0.0
+        self._filtered_flow = 0.0
+        self._lp_filter = LowPassSinglePole(0.98)
+
+    @property
+    def get_ticks(self):
+        return self.ticks
+
+    @property
+    def get_ml(self):
+        return self.ticks / self.CALIBRATION
+
+    @property
+    def get_raw_flow(self):
+        return self._raw_flow
+
+    @property
+    def get_filtered_flow(self):
+        return self._filtered_flow
+
+    def reset_ticks(self):
+        self.ticks = 0.0
+        self._raw_flow = 0.0
+        self._filtered_flow = 0.0
+        self._lp_filter.reset()
+
+    def filter_flow_rate(self):
+        self._filtered_flow = self._lp_filter.filter(self.get_raw_flow)
+
+    def _pulse(self, gpio, level, tick):
+        # If this is the first tick, just record the timestamp and level
+        if self.last_tick is None:
+            self.last_tick = tick
+            self.last_level = level
+            return
+
+        # Update the tick count based on the level change
+        if level != self.last_level:  # Edge detected
+            self.ticks += 1.0
+
+        # velocity estimate
+        time_elapsed = tick - self.last_tick  # microseconds
+        # account for wraparound
+        if time_elapsed < 0.0:
+            time_elapsed = 4294967295 - self.last_tick + tick
+        # account for big errors
+        if time_elapsed > 1e6:  # should not be more than 1 second between each tick
+            time_elapsed = 0
+        if time_elapsed <= 0:
+            self._raw_flow = 0.0
+        else:
+            self._raw_flow = self.INV_CALIBRATION / (time_elapsed * 1e-6)
+
+        # Update the last timestamp and level
+        self.last_tick = tick
+        self.last_level = level
+
+
 class PressureSensor:
     _last_voltage: float = 0.0
     _last_pressure: float = 0.0
@@ -150,6 +225,7 @@ class Boiler:
 
         self._period = 1.0 / 5.0
         self._kp = 200
+        self._kp_turbo = 1600
         self._kd = 2500
         # self._kd = 1500
         self._ki = 0.05
@@ -163,6 +239,7 @@ class Boiler:
         self._u = 0.0
 
         self._target_temperature = 93 + 5
+        self._turbo = False
 
     @property
     def setpoint(self):
@@ -170,6 +247,9 @@ class Boiler:
 
     def set_target_temp(self, temp):
         self._target_temperature = temp
+
+    def set_turbo(self, turbo):
+        self._turbo = turbo
 
     @property
     def current_u(self):
@@ -194,7 +274,11 @@ class Boiler:
             if self._ki * self._integrated_temp_error > self.PWM_RANGE / 5.0:
                 self._integrated_temp_error = self.PWM_RANGE / (self._ki * 5.0)
 
-            self._p_component = self._kp * temp_error
+            if self._turbo:
+                self._p_component = self._kp_turbo * temp_error
+            else:
+                self._p_component = self._kp * temp_error
+
             self._d_component = self._kd * derivative
             self._i_component = self._ki * self._integrated_temp_error
             u = self._p_component + self._i_component + self._d_component
