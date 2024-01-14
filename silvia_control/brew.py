@@ -112,45 +112,19 @@ class Brew:
                 self._pump.reset_integrator()
                 self.brew_stage_idx += 1
 
-
             # Brew Logs Update Display
             txt = "{time:.2f}"
             if len(brew_data_rows) == 0:
+                for brew_stage_row in brew_profile:
+                    brew_data_rows.append(
+                        {'stage': brew_stage_row.name, 'logs': "0"}
+                    )
                 brew_data_rows.append(
-                    {'stage': 'Fill', 'logs': "0"}
-                )
-                brew_data_rows.append(
-                    {'stage': 'PreInfuse', 'logs': "0"}
-                )
-                brew_data_rows.append(
-                    {'stage': 'Extraction Ramp Up', 'logs': "0"}
-                )
-                brew_data_rows.append(
-                    {'stage': 'Extraction Hold', 'logs': "0"}
-                )
-                brew_data_rows.append(
-                    {'stage': 'Extraction Ramp Down', 'logs': "0"}
-                )
-                brew_data_rows.append(
-                    {'stage': 'Total Time', 'logs': txt.format(time=time.time() - brew_start_time)}
-                )
+                    {'stage': 'Total Time', 'logs': txt.format(time=time.monotonic() - brew_start_time)})
             else:
-                brew_data_rows[0] = {'stage': 'Fill', 'logs': txt.format(time=fill_end_time - brew_start_time)}
-                if preinfuse_end_time != brew_start_time:
-                    brew_data_rows[1] = {'stage': 'PreInfuse',
-                                         'logs': txt.format(time=preinfuse_end_time - fill_end_time)}
-                if extraction_ramp_end_time != brew_start_time:
-                    brew_data_rows[2] = {'stage': 'Extraction Ramp Up',
-                                         'logs': txt.format(time=extraction_ramp_end_time - preinfuse_end_time)}
-                if extraction_hold_end_time != brew_start_time:
-                    brew_data_rows[3] = {'stage': 'Extraction Hold',
-                                         'logs': txt.format(time=extraction_hold_end_time - extraction_ramp_end_time)}
-                if extraction_ramp_down_end_time != brew_start_time:
-                    brew_data_rows[4] = {'stage': 'Extraction Ramp Down',
-                                         'logs': txt.format(time=extraction_ramp_down_end_time -
-                                                                 extraction_hold_end_time)}
-                brew_data_rows[5] = {'stage': 'Total Time', 'logs': txt.format(time=time.time() - brew_start_time)}
-
+                brew_data_rows[self.brew_stage_idx]['logs'] = txt.format(
+                    time=time.monotonic() - cur_brew_stage_start_time)
+                brew_data_rows[len(brew_profile)]['logs'] = txt.format(time=time.monotonic() - brew_start_time)
             last_brew_data_table.update()
 
             # Finish Brew
