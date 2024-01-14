@@ -338,16 +338,13 @@ class Pump:
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
 
-        self._kp_flow = 100
-        self._kd_flow = 0  # 20
-        self._ki_flow = 30
-        self._last_flow_error = 0
-        self._lp_filter_flow_derivative = LowPassSinglePole(0.98)
+        self._kp_flow = 15
+        self._ki_flow = 0.1
         self._integrated_flow_error = 0
-
         self._target_flow = 0.0
-        self._flow_mode = False
 
+        self._flow_mode = False
+        self._flow_mode_max_pressure = 0.0
         self._brew_state = 0
 
     def read_pump_state(self):
@@ -389,8 +386,9 @@ class Pump:
     def set_target_flow(self, target_flow):
         self._target_flow = target_flow
 
-    def set_flow_mode(self, flow=False):
+    def set_flow_mode(self, flow=False, max_pressure=0.0):
         self._flow_mode = flow
+        self._flow_mode_max_pressure = max_pressure
 
     @property
     def p_i_d_components(self):
@@ -398,6 +396,7 @@ class Pump:
 
     def reset_integrator(self):
         self._integrated_pressure_error = 0
+        self._integrated_flow_error = 0
 
     async def control_loop(self):
         while True:
@@ -405,8 +404,30 @@ class Pump:
             # Compute control for flow
             current_flow = self._flow_sensor.get_filtered_flow
             flow_error = self._target_flow - current_flow
+            self._integrated_flow_error += flow_error
+
+            # Saturate Integrator at 5 bars of pressure
+            if self._ki_flow * self._integrated_flow_error < -5.0:
+                self._integrated_flow_error = -5.0 / self._ki_flow
+            if self._ki_flow * self._integrated_flow_error > 5.0:
+                self._integrated_flow_error = 5.0 / self._ki_flow
+
+            p_flow_component = self._kp_flow * flow_error
+            i_flow_component = self._ki_flow * self._integrated_flow_error
+            u_flow = p_flow_component + i_flow_component
+
+            # Saturate
+            if u_flow > 10.0:
+                u_flow = 10.0
+            if u_flow < 0.0:
+                u_flow = 0.0
+            if self._flow_mode_max_pressure > 0.0 and u_flow > self._flow_mode_max_pressure:
+                u_flow = self._flow_mode_max_pressure
 
             # Compute control for pressure
+            if self._flow_mode:
+                self._target_pressure = u_flow
+
             current_pressure = self._pressure_sensor.pressure
             pressure_error = self._target_pressure - current_pressure
             derivative = self._lp_filter_derivative.filter((pressure_error - self._last_pressure_error) / self._period)

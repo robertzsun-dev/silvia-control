@@ -3,6 +3,7 @@ import time
 from nicegui import app, ui
 from devices import Thermocouple, FlowSensor, PressureSensor, Boiler, Pump, READ_PERIOD
 from brew import Brew
+from brew_profiles import brew_profiles
 
 # Instantiate Devices
 boiler_thermo = Thermocouple(1, offset=-7)
@@ -10,7 +11,7 @@ grouphead_thermo = Thermocouple(0)
 pressure_sensor = PressureSensor(2)
 flow_sensor = FlowSensor(23)
 
-pump = Pump(pressure_sensor)
+pump = Pump(pressure_sensor, flow_sensor)
 boiler_thermo.read_temperature()
 grouphead_thermo.read_temperature()
 pressure_sensor.read_pressure()
@@ -33,6 +34,13 @@ with ui.card():
         with ui.column():
             pressure_circular = ui.circular_progress(min=0.0, max=13.0, size="6em")
             ui.label('Pressure (Bars)')
+
+# Brew Profile Selection
+with ui.card():
+    with ui.row():
+        ui.label("Brew Profile:")
+    with ui.row():
+        brew_profile_selector = ui.select(list(brew_profiles.keys()), value="lever")
 
 # Brew Information
 brew_data_columns = [
@@ -243,6 +251,6 @@ ui.timer(READ_PERIOD, lambda: pump_state_circular.set_value(pump.read_pump_state
 # Control Loops
 app.on_startup(boiler.control_loop())
 app.on_startup(pump.control_loop())
-app.on_startup(brew.monitor_brew_button(brew_status_label, last_brew_data_table, brew_data_rows, reset_echart))
+app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label, last_brew_data_table, brew_data_rows, reset_echart))
 
 ui.run(port=80, show=False)
