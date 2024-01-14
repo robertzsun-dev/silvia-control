@@ -57,26 +57,22 @@ class Brew:
 
             if brew_stage.target_type == TargetType.PRESSURE:
                 time_elapsed = time.monotonic() - cur_brew_stage_start_time
-                if brew_stage.ramp_time > 0.0:
+                if brew_stage.ramp_time > 0.0 and time_elapsed < brew_stage.ramp_time:
                     ramp_up_pressure_slope = ((brew_stage.target - cur_brew_stage_starting_pressure) /
                                               brew_stage.ramp_time)
                     actual_des_pressure = (cur_brew_stage_starting_pressure +
                                            time_elapsed * ramp_up_pressure_slope)
-                    if actual_des_pressure >= brew_stage.target:
-                        actual_des_pressure = brew_stage.target
                 else:
                     actual_des_pressure = brew_stage.target
                 self._pump.set_flow_mode(False)
                 self._pump.set_target_pressure(actual_des_pressure)
             elif brew_stage.target_type == TargetType.FLOW:
                 time_elapsed = time.monotonic() - cur_brew_stage_start_time
-                if brew_stage.ramp_time > 0.0:
+                if brew_stage.ramp_time > 0.0 and time_elapsed < brew_stage.ramp_time:
                     ramp_up_flow_slope = ((brew_stage.target - cur_brew_stage_starting_flow) /
                                           brew_stage.ramp_time)
                     actual_des_flow = (cur_brew_stage_starting_flow +
                                        time_elapsed * ramp_up_flow_slope)
-                    if actual_des_flow >= brew_stage.target:
-                        actual_des_flow = brew_stage.target
                 else:
                     actual_des_flow = brew_stage.target
                 self._pump.set_flow_mode(True)
