@@ -151,14 +151,15 @@ def set_echart_values():
         pressure_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.current_u])
 
         flow_echart.options['series'][0]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
-        flow_echart.options['series'][1]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+        flow_echart.options['series'][1]['data'].append([new_point_time - start_time, flow_sensor.get_filtered_flow])
         flow_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.setpoint_flow])
 
         combined_echart.options['series'][0]['data'].append([new_point_time - start_time, pressure_sensor.pressure])
         combined_echart.options['series'][1]['data'].append([new_point_time - start_time, pump.setpoint])
         combined_echart.options['series'][2]['data'].append([new_point_time - start_time, pump.current_u])
         combined_echart.options['series'][3]['data'].append([new_point_time - start_time, flow_sensor.get_ml])
-        combined_echart.options['series'][4]['data'].append([new_point_time - start_time, flow_sensor.get_raw_flow])
+        combined_echart.options['series'][4]['data'].append(
+            [new_point_time - start_time, flow_sensor.get_filtered_flow])
         combined_echart.options['series'][5]['data'].append([new_point_time - start_time, pump.setpoint_flow])
 
         if counter == 0:
@@ -189,14 +190,14 @@ def reset_echart():
     pressure_echart.options['series'][2]['data'] = [[0, pump.current_u]]
 
     flow_echart.options['series'][0]['data'] = [[0, flow_sensor.get_ml]]
-    flow_echart.options['series'][1]['data'] = [[0, flow_sensor.get_raw_flow]]
+    flow_echart.options['series'][1]['data'] = [[0, flow_sensor.get_filtered_flow]]
     flow_echart.options['series'][2]['data'] = [[0, pump.setpoint_flow]]
 
     combined_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
     combined_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
     combined_echart.options['series'][2]['data'] = [[0, pump.current_u]]
     combined_echart.options['series'][3]['data'] = [[0, flow_sensor.get_ml]]
-    combined_echart.options['series'][4]['data'] = [[0, flow_sensor.get_raw_flow]]
+    combined_echart.options['series'][4]['data'] = [[0, flow_sensor.get_filtered_flow]]
     combined_echart.options['series'][5]['data'] = [[0, pump.setpoint_flow]]
 
 
@@ -253,12 +254,13 @@ ui.timer(0.1, lambda: set_pid_component_ui())
 ui.timer(READ_PERIOD, lambda: boiler_temp_circular.set_value(boiler_thermo.read_temperature()))
 ui.timer(READ_PERIOD, lambda: grouphead_temp_circular.set_value(grouphead_thermo.read_temperature()))
 ui.timer(1.0 / 200.0, lambda: pressure_circular.set_value(pressure_sensor.read_pressure()))
-ui.timer(1.0 / 200.0, lambda: flow_sensor.filter_flow_rate())
+ui.timer(FlowSensor.FILTER_SAMPLING_PERIOD, lambda: flow_sensor.filter_flow_rate())
 ui.timer(READ_PERIOD, lambda: pump_state_circular.set_value(pump.read_pump_state()))
 
 # Control Loops
 app.on_startup(boiler.control_loop())
 app.on_startup(pump.control_loop())
-app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label, last_brew_data_table, brew_data_rows, reset_echart))
+app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label, last_brew_data_table, brew_data_rows,
+                                        reset_echart))
 
 ui.run(port=80, show=False)

@@ -32,6 +32,29 @@ class LowPassSinglePole:
         return self.y
 
 
+class TrackingLoopFilter:
+    def __init__(self, kp, ki):
+        self.kp = kp
+        self.ki = ki
+
+        self.velest = 0
+        self.posest = 0
+        self.velintegrator = 0
+
+    def reset(self):
+        self.velest = 0
+        self.posest = 0
+        self.velintegrator = 0
+
+    def filter(self, x, dt):
+        self.posest += self.velest * dt
+        poserr = x - self.posest
+        self.velintegrator += poserr * self.ki * dt
+        self.velest = poserr * self.kp + self.velintegrator
+
+        return self.posest, self.velest, self.velintegrator
+
+
 class Thermocouple:
     _last_voltage: float = 0.0
     _last_temp: float = 0.0
@@ -85,9 +108,11 @@ class Thermocouple:
 
 class FlowSensor:
     FLOW_SENSOR_PIN = 23
-    CALIBRATION = 3.392  # 3.392 Pulses / milliliter
-    INV_CALIBRATION = 1.0 / CALIBRATION  # 0.519 mL / Pulse
+    CALIBRATION = 3.57  # Pulses / milliliter
+    INV_CALIBRATION = 1.0 / CALIBRATION
     _lp_filter: LowPassSinglePole = None
+    _tl_filter: TrackingLoopFilter = None
+    FILTER_SAMPLING_PERIOD = 1.0 / 200.0
 
     def __init__(self, pin):
         self.ticks = 0.0  # The number of encoder ticks
@@ -102,7 +127,9 @@ class FlowSensor:
 
         self._raw_flow = 0.0
         self._filtered_flow = 0.0
-        self._lp_filter = LowPassSinglePole(0.98)
+        self._lp_filter = LowPassSinglePole(0.95)
+        self._tl_filter = TrackingLoopFilter(20.0, 90.0)
+        self._last_ml = 0.0
 
     @property
     def get_ticks(self):
@@ -113,21 +140,24 @@ class FlowSensor:
         return self.ticks / self.CALIBRATION
 
     @property
-    def get_raw_flow(self):
-        return self._raw_flow
-
-    @property
     def get_filtered_flow(self):
         return self._filtered_flow
 
     def reset_ticks(self):
         self.ticks = 0.0
-        self._raw_flow = 0.0
+        self._last_ml = 0.0
         self._filtered_flow = 0.0
-        self._lp_filter.reset()
+        self._raw_flow = 0.0
+        self._tl_filter.reset()
 
     def filter_flow_rate(self):
-        self._filtered_flow = self._lp_filter.filter(self.get_raw_flow)
+        # delta = (self.get_ml - self._last_ml) / self.FILTER_SAMPLING_PERIOD
+        # self._filtered_flow = self._lp_filter.filter(delta)
+        # self._last_ml = self.get_ml
+    #     est_pos, est_vel, integrated_vel = self._tl_filter.filter(self.get_ml, self.FILTER_SAMPLING_PERIOD)
+    #     self._filtered_flow = est_vel
+        self._filtered_flow = self._lp_filter.filter(self._raw_flow)
+        self._raw_flow = 0.0
 
     def _pulse(self, gpio, level, tick):
         # If this is the first tick, just record the timestamp and level
@@ -338,7 +368,7 @@ class Pump:
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
 
-        self._kp_flow = 15
+        self._kp_flow = 5
         self._ki_flow = 0.1
         self._integrated_flow_error = 0
         self._target_flow = 0.0
@@ -421,7 +451,7 @@ class Pump:
                 u_flow = 10.0
             if u_flow < 0.0:
                 u_flow = 0.0
-            if self._flow_mode_max_pressure > 0.0 and u_flow > self._flow_mode_max_pressure:
+            if 0.0 < self._flow_mode_max_pressure < u_flow:
                 u_flow = self._flow_mode_max_pressure
 
             # Compute control for pressure

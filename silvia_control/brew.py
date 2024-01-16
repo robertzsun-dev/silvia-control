@@ -37,14 +37,17 @@ class Brew:
         cur_brew_stage_start_time = time.monotonic()
         cur_brew_stage_starting_pressure = self._pump.current_pressure
         cur_brew_stage_starting_flow = self._flow_sensor.get_filtered_flow
+        cur_brew_stage_starting_volume = self._flow_sensor.get_ml
 
         # Initialize states
-        self._current_state = BrewState.BREWING
         self._pump.reset_integrator()
         self._flow_sensor.reset_ticks()
         brew_data_rows.clear()
         self.brew_stage_idx = 0
         self._boiler.set_turbo(True)
+
+        # Start Brewing
+        self._current_state = BrewState.BREWING
 
         # Brew loop
         while True:
@@ -100,27 +103,34 @@ class Brew:
             elif (brew_stage.transition_type == TransitionType.FLOW_UNDER
                   and self._flow_sensor.get_filtered_flow < brew_stage.transition_parameter):
                 transition = True
+            elif (brew_stage.transition_type == TransitionType.VOLUME_OVER
+                  and self._flow_sensor.get_ml - cur_brew_stage_starting_volume > brew_stage.transition_parameter):
+                transition = True
             if transition:
                 # Transition Brew Stage
                 cur_brew_stage_start_time = time.monotonic()
                 cur_brew_stage_starting_pressure = self._pump.current_pressure
                 cur_brew_stage_starting_flow = self._flow_sensor.get_filtered_flow
+                cur_brew_stage_starting_volume = self._flow_sensor.get_ml
                 self._pump.reset_integrator()
                 self.brew_stage_idx += 1
 
             # Brew Logs Update Display
-            txt = "{time:.2f}"
+            txt = "{time:.2f}s : {volume:.3f}ml"
             if len(brew_data_rows) == 0:
                 for brew_stage_row in brew_profile:
                     brew_data_rows.append(
                         {'stage': brew_stage_row.name, 'logs': "0"}
                     )
                 brew_data_rows.append(
-                    {'stage': 'Total Time', 'logs': txt.format(time=time.monotonic() - brew_start_time)})
+                    {'stage': 'Total Time', 'logs': txt.format(time=time.monotonic() - brew_start_time,
+                                                               volume=self._flow_sensor.get_ml)})
             else:
                 brew_data_rows[self.brew_stage_idx]['logs'] = txt.format(
-                    time=time.monotonic() - cur_brew_stage_start_time)
-                brew_data_rows[len(brew_profile)]['logs'] = txt.format(time=time.monotonic() - brew_start_time)
+                    time=time.monotonic() - cur_brew_stage_start_time,
+                    volume=self._flow_sensor.get_ml - cur_brew_stage_starting_volume)
+                brew_data_rows[len(brew_profile)]['logs'] = txt.format(time=time.monotonic() - brew_start_time,
+                                                                       volume=self._flow_sensor.get_ml)
             last_brew_data_table.update()
 
             # Finish Brew
