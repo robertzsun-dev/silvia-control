@@ -356,7 +356,7 @@ class Pump:
         self._period = 1.0 / 200.0
         self._kp = 100
         self._kd = 0  # 20
-        self._ki = 30
+        self._ki = 20
         self._last_pressure_error = 0
         self._lp_filter_derivative = LowPassSinglePole(0.98)
         self._integrated_pressure_error = 0
@@ -436,7 +436,7 @@ class Pump:
             flow_error = self._target_flow - current_flow
             self._integrated_flow_error += flow_error
 
-            # Saturate Integrator at 5 bars of pressure
+            # Saturate Integrator at 5 mL/s of flow
             if self._ki_flow * self._integrated_flow_error < -5.0:
                 self._integrated_flow_error = -5.0 / self._ki_flow
             if self._ki_flow * self._integrated_flow_error > 5.0:
@@ -464,7 +464,7 @@ class Pump:
             self._last_pressure_error = pressure_error
             self._integrated_pressure_error += pressure_error
 
-            # Don't integrate negative pressure if current pressure in < 4.5.
+            # Don't integrate negative pressure if current pressure in < 1.5.
             # There's nothing the machine can do to alleviate that pressure, so building up integration error is useless
             if (current_pressure < 1.5 or self._target_pressure < 1.5) and self._integrated_pressure_error < 0:
                 self._integrated_pressure_error = 0

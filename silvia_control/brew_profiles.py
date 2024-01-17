@@ -32,7 +32,8 @@ class BrewStage:
     name: str
 
     def __init__(self, target_temperature: float, target_type: TargetType, target: float, pressure_limit: float,
-                 ramp_time: float, maximum_time: float, transition_type: TransitionType, transition_parameter: float, name: str):
+                 ramp_time: float, maximum_time: float, transition_type: TransitionType, transition_parameter: float,
+                 name: str):
         self.target_temperature = target_temperature
         self.target_type = target_type
         self.target = target

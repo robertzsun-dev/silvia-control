@@ -11,8 +11,8 @@ from brew_profiles import brew_profiles, TransitionType, TargetType, BrewStage
 
 class BrewState(Enum):
     IDLE = 0
-    BREWING = 2
-    FINISHED = 3
+    BREWING = 1
+    FINISHED = 2
 
 
 class Brew:
@@ -30,14 +30,14 @@ class Brew:
 
     @property
     def currently_brewing(self):
-        return self._currently_brewing
+        return self._current_state == BrewState.BREWING
 
     async def _brew(self, brew_profile: List[BrewStage], last_brew_data_table: ui.table, brew_data_rows: list):
         brew_start_time = time.monotonic()
         cur_brew_stage_start_time = time.monotonic()
-        cur_brew_stage_starting_pressure = self._pump.current_pressure
-        cur_brew_stage_starting_flow = self._flow_sensor.get_filtered_flow
-        cur_brew_stage_starting_volume = self._flow_sensor.get_ml
+        cur_brew_stage_starting_pressure = 0.0
+        cur_brew_stage_starting_flow = 0.0
+        cur_brew_stage_starting_volume = 0.0
 
         # Initialize states
         self._pump.reset_integrator()
@@ -151,9 +151,7 @@ class Brew:
         # sanity check pump state is ON
         if not self._pump.brew_state:
             return
-        self._currently_brewing = True
         await self._brew(brew_profile, last_brew_data_table, brew_data_rows)
-        self._currently_brewing = False
 
     async def monitor_brew_button(self, brew_profile_selector: ui.select, brew_status_label: ui.label,
                                   last_brew_data_table: ui.table, brew_data_rows: list, reset_chart_callback):
