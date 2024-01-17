@@ -96,10 +96,57 @@ lever = [
     BrewStage(
         target_temperature=93.0,
         target_type=TargetType.PRESSURE,
-        target=0.0,
+        target=4.0,
         pressure_limit=0.0,
         ramp_time=27.5,
         maximum_time=27.5,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="ExtractRampDown"
+    )
+]
+
+cremina_lever = [
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FILL_TARGET_PRESSURE,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=10.0,
+        transition_type=TransitionType.PRESSURE_OVER,
+        transition_parameter=3.0,
+        name="Fill"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=10.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="PreinfuseNoPressure"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=9.0,
+        pressure_limit=0.0,
+        ramp_time=10.0,
+        maximum_time=10.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Extract"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=3.0,
+        pressure_limit=0.0,
+        ramp_time=50.0,
+        maximum_time=50.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="ExtractRampDown"
@@ -224,7 +271,7 @@ ExtractamundoDos = [
         target_temperature=93.0,
         target_type=TargetType.FLOW_WITH_PRESSURE_LIMIT,
         target=4.0,
-        pressure_limit=0.0,
+        pressure_limit=6.0,
         ramp_time=0.0,
         maximum_time=60.0,
         transition_type=TransitionType.NONE,
@@ -606,6 +653,7 @@ oolong_concentrated = [
 brew_profiles = {
     "cleaning": cleaning,
     "lever": lever,
+    "cremina_lever": cremina_lever,
     "LRv3": LRv3,
     "ExtractamundoDos": ExtractamundoDos,
     "flat9": flat9,
