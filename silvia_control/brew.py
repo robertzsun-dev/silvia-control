@@ -145,6 +145,7 @@ class Brew:
 
         # Finish brew
         self._current_state = BrewState.FINISHED
+        self._pump.set_flow_mode(False)
         self._pump.set_target_pressure(Pump.PUMP_OFF_TARGET_PRESSURE)
         self._boiler.set_turbo(False)
         self._boiler.set_target_temp(93 + 5)

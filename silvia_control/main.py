@@ -124,9 +124,9 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                  'name': 'Target Pressure', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'yAxisIndex': 1, 'data': [[0, pump.current_u]],
                  'name': 'Pump U', 'smooth': "true", "symbol": "none"},
-                {'type': 'line', 'yAxisIndex': 2, 'data': [[0, flow_sensor.get_ml]],
+                {'type': 'line', 'yAxisIndex': 2, 'data': [[0, 0.0]],
                  'name': 'Total Volume', 'smooth': "true", "symbol": "none"},
-                {'type': 'line', 'yAxisIndex': 3, 'data': [[0, flow_sensor.get_filtered_flow]],
+                {'type': 'line', 'yAxisIndex': 3, 'data': [[0, 0.0]],
                  'name': 'Flow Rate', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'yAxisIndex': 3, 'data': [[0, pump.setpoint_flow]],
                  'name': 'Target Flow Rate', 'smooth': "true", "symbol": "none"}
