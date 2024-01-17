@@ -4,6 +4,8 @@ from enum import Enum
 
 from nicegui import ui
 import time
+from datetime import datetime
+import csv
 
 from devices import Boiler, Pump, FlowSensor
 from brew_profiles import brew_profiles, TransitionType, TargetType, BrewStage
@@ -154,16 +156,38 @@ class Brew:
         await self._brew(brew_profile, last_brew_data_table, brew_data_rows)
 
     async def monitor_brew_button(self, brew_profile_selector: ui.select, brew_status_label: ui.label,
-                                  last_brew_data_table: ui.table, brew_data_rows: list, reset_chart_callback):
+                                  last_brew_data_table: ui.table, brew_data_rows: list, reset_chart_callback,
+                                  chart_to_save):
         # monitor pump loop
         while True:
             start_time = time.monotonic()
 
             brew_state = self._pump.brew_state
             if brew_state and self._current_state == BrewState.IDLE:
+                filename = datetime.now().strftime("./data/%m-%d-%Y-%H:%M:%S-")
+                filename += str(brew_profile_selector.value)
+                filename += ".csv"
+
                 brew_status_label.set_text("Brewing")
                 reset_chart_callback()
                 await self.brew(brew_profiles[brew_profile_selector.value], last_brew_data_table, brew_data_rows)
+
+                # Save Chart/data after brew
+                file = open(filename, 'w+')
+                data = [
+                    ['time', 'pressure', 'pressure_setpoint', 'pump_current_u', 'water_volume', 'filtered_flow_rate',
+                     'flow_setpoint']]
+                for i in range(0, len(chart_to_save.options['series'][0]['data'])):
+                    data.append([chart_to_save.options['series'][0]['data'][i][0],
+                                 chart_to_save.options['series'][0]['data'][i][1],
+                                 chart_to_save.options['series'][1]['data'][i][1],
+                                 chart_to_save.options['series'][2]['data'][i][1],
+                                 chart_to_save.options['series'][3]['data'][i][1],
+                                 chart_to_save.options['series'][4]['data'][i][1],
+                                 chart_to_save.options['series'][5]['data'][i][1]])
+                with file:
+                    write = csv.writer(file)
+                    write.writerows(data)
             elif not brew_state:
                 self._current_state = BrewState.IDLE
                 brew_status_label.set_text("Turn on Brew Switch to start brew")

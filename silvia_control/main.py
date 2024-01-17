@@ -261,6 +261,6 @@ ui.timer(READ_PERIOD, lambda: pump_state_circular.set_value(pump.read_pump_state
 app.on_startup(boiler.control_loop())
 app.on_startup(pump.control_loop())
 app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label, last_brew_data_table, brew_data_rows,
-                                        reset_echart))
+                                        reset_echart, combined_echart))
 
 ui.run(port=80, show=False)
