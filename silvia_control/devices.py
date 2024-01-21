@@ -108,7 +108,7 @@ class Thermocouple:
 
 class FlowSensor:
     FLOW_SENSOR_PIN = 23
-    CALIBRATION = 3.57  # Pulses / milliliter
+    CALIBRATION = 3.4425  # Pulses / milliliter
     INV_CALIBRATION = 1.0 / CALIBRATION
     _lp_filter: LowPassSinglePole = None
     _tl_filter: TrackingLoopFilter = None

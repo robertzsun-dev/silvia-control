@@ -37,10 +37,15 @@ with ui.card():
 
 # Brew Profile Selection
 with ui.card():
-    with ui.row():
-        ui.label("Brew Profile:")
-    with ui.row():
-        brew_profile_selector = ui.select(list(brew_profiles.keys()), value="lever")
+    with ui.column().classes('w-full items-center'):
+        with ui.row().classes('w-full items-center'):
+            ui.label("Brew Profile:").classes('mr-2')
+            brew_profile_selector = ui.select(list(brew_profiles.keys()), value="lever").classes('ml-2')
+        ui.label("Manual Temperature Control")
+        temp_slider = ui.slider(min=0, max=120, value=boiler.setpoint)
+        ui.label().bind_text_from(temp_slider, 'value')
+
+temp_slider.on('update:model-value', lambda e: boiler.set_target_temp(e.args), throttle=1.0)
 
 # Brew Information
 brew_data_columns = [
@@ -141,6 +146,9 @@ def set_echart_values():
     global start_time
     global counter
     if brew.currently_brewing:
+        temp_slider.disable()
+        temp_slider.set_value(boiler.setpoint)
+
         new_point_time = time.time()
         temp_echart.options['series'][0]['data'].append([new_point_time - start_time, boiler_thermo.temperature])
         temp_echart.options['series'][1]['data'].append([new_point_time - start_time, grouphead_thermo.temperature])
@@ -176,6 +184,8 @@ def set_echart_values():
             counter += 1
         else:
             counter = 0
+    else:
+        temp_slider.enable()
 
 
 def reset_echart():

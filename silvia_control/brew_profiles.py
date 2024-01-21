@@ -153,6 +153,42 @@ cremina_lever = [
     )
 ]
 
+londinium = [
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FILL_TARGET_PRESSURE,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=10.0,
+        transition_type=TransitionType.PRESSURE_OVER,
+        transition_parameter=2.0,
+        name="Fill"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=3.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=12.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="PreinfusePressurized"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=9.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=90.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Extract"
+    )
+]
+
 LRv3 = [
     BrewStage(
         target_temperature=93.0,
@@ -654,6 +690,7 @@ brew_profiles = {
     "cleaning": cleaning,
     "lever": lever,
     "cremina_lever": cremina_lever,
+    "londinium": londinium,
     "LRv3": LRv3,
     "ExtractamundoDos": ExtractamundoDos,
     "flat9": flat9,
