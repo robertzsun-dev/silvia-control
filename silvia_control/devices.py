@@ -106,12 +106,56 @@ class Thermocouple:
         return (50.0 * (40.0 * voltage - 11.0 * INPUT_VOLTAGE) / (9 * INPUT_VOLTAGE)) + self._offset
 
 
+class KalmanFilter:
+    def __init__(self, process_noise_std, measurement_noise_std, control_input_std):
+        # State Transition Model: [water volume; water flow]
+        self.A = lambda dt: np.array([[1, dt],  # Integration of flow into volume
+                                     [0, 1]])  # Flow goes to 0 without control input
+
+        self.B = np.array([[0],      # Control input affects flow, not directly volume
+                           [0]])      # Control input affects flow
+        self.C = np.array([[1, 0]])  # Measurement is of the water volume
+
+        # Process Noise Covariance (including control input noise)
+        self.Q = lambda dt: np.array([[process_noise_std**2, 0], 
+                                     [0, process_noise_std**2 + control_input_std**2 * dt**2]])  # Process noise covariance, including control input noise
+
+        self.R = measurement_noise_std**2  # Measurement noise covariance
+
+        # Initial State
+        self.state_estimate = np.zeros((2, 1))
+
+        # Initial Covariance Estimate
+        self.covariance_estimate = np.eye(2)
+
+    def reset():
+        self.state_estimate = np.zeros((2, 1))
+        self.covariance_estimate = np.eye(2)
+
+    def predict(self, control_input, dt):
+        # Predicted (a priori) state estimate
+        self.state_estimate = np.dot(self.A(dt), self.state_estimate) + np.dot(self.B, control_input)
+
+        # Predicted (a priori) estimate covariance
+        self.covariance_estimate = np.dot(np.dot(self.A(dt), self.covariance_estimate), self.A(dt).T) + self.Q(dt)
+
+    def update(self, measurement):
+        # Kalman Gain
+        S = np.dot(self.C, np.dot(self.covariance_estimate, self.C.T)) + self.R
+        K = np.dot(np.dot(self.covariance_estimate, self.C.T), np.linalg.inv(S))
+
+        # Updated (a posteriori) state estimate
+        self.state_estimate += np.dot(K, (measurement - np.dot(self.C, self.state_estimate)))
+
+        # Updated (a posteriori) estimate covariance
+        self.covariance_estimate = np.dot((np.eye(2) - np.dot(K, self.C)), self.covariance_estimate)
+
+
 class FlowSensor:
     FLOW_SENSOR_PIN = 23
     CALIBRATION = 3.4425  # Pulses / milliliter
     INV_CALIBRATION = 1.0 / CALIBRATION
     _lp_filter: LowPassSinglePole = None
-    _tl_filter: TrackingLoopFilter = None
     FILTER_SAMPLING_PERIOD = 1.0 / 200.0
 
     def __init__(self, pin):
@@ -128,7 +172,12 @@ class FlowSensor:
         self._raw_flow = 0.0
         self._filtered_flow = 0.0
         self._lp_filter = LowPassSinglePole(0.95)
-        self._tl_filter = TrackingLoopFilter(20.0, 90.0)
+        process_noise_std = 0.01  # Standard deviation of the process noise
+        measurement_noise_std = 0.1  # Standard deviation of the measurement noise
+        control_input_std = 1.0  # Standard deviation of the control input noise
+
+        self._kalman_filter = KalmanFilter(process_noise_std, measurement_noise_std, control_input_std)
+        self._last_filter_time = None
         self._last_ml = 0.0
 
     @property
@@ -148,7 +197,7 @@ class FlowSensor:
         self._last_ml = 0.0
         self._filtered_flow = 0.0
         self._raw_flow = 0.0
-        self._tl_filter.reset()
+        self._kalman_filter.reset()
 
     def filter_flow_rate(self):
         # delta = (self.get_ml - self._last_ml) / self.FILTER_SAMPLING_PERIOD
@@ -156,8 +205,17 @@ class FlowSensor:
         # self._last_ml = self.get_ml
     #     est_pos, est_vel, integrated_vel = self._tl_filter.filter(self.get_ml, self.FILTER_SAMPLING_PERIOD)
     #     self._filtered_flow = est_vel
-        self._filtered_flow = self._lp_filter.filter(self._raw_flow)
-        self._raw_flow = 0.0
+        if self._last_filter_time is not None:
+          self._kalman_filter.predict(0.0, time.time() - self._last_filter_time)
+          self._kalman_filter.update(self.get_ml)
+          volume_estimate, flow_rate_estimate = self._kalman_filter.state_estimate.ravel()
+          if flow_rate_estimate < 0:
+            flow_rate_estimate = 0
+          self._filtered_flow = flow_rate_estimate
+
+        self._last_filter_time = time.time()
+#        self._filtered_flow = self._lp_filter.filter(self._raw_flow)
+#        self._raw_flow = 0.0
 
     def _pulse(self, gpio, level, tick):
         # If this is the first tick, just record the timestamp and level
@@ -368,8 +426,8 @@ class Pump:
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
 
-        self._kp_flow = 5
-        self._ki_flow = 0.1
+        self._kp_flow = 3.5
+        self._ki_flow = 0.05
         self._integrated_flow_error = 0
         self._target_flow = 0.0
 
@@ -419,6 +477,8 @@ class Pump:
     def set_flow_mode(self, flow=False, max_pressure=0.0):
         self._flow_mode = flow
         self._flow_mode_max_pressure = max_pressure
+        if not flow:
+          self._target_flow = 0.0
 
     @property
     def p_i_d_components(self):
