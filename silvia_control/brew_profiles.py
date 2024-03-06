@@ -743,6 +743,7 @@ brew_profiles = {
     "LRv3": LRv3,
     "ExtractamundoDos": ExtractamundoDos,
     "flat9": flat9,
+    "turbo": turbo,
     "turbobloom": turbobloom,
     "blooming": blooming,
     "oolong_gongfu_4g": oolong_gongfu,
