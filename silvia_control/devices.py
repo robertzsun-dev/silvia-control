@@ -128,7 +128,7 @@ class KalmanFilter:
         # Initial Covariance Estimate
         self.covariance_estimate = np.eye(2)
 
-    def reset():
+    def reset(self):
         self.state_estimate = np.zeros((2, 1))
         self.covariance_estimate = np.eye(2)
 
@@ -426,8 +426,8 @@ class Pump:
 
         self._target_pressure = self.PUMP_OFF_TARGET_PRESSURE
 
-        self._kp_flow = 3.5
-        self._ki_flow = 0.05
+        self._kp_flow = 0.0
+        self._ki_flow = 0.0005
         self._integrated_flow_error = 0
         self._target_flow = 0.0
 
@@ -497,10 +497,10 @@ class Pump:
             self._integrated_flow_error += flow_error
 
             # Saturate Integrator at 5 mL/s of flow
-            if self._ki_flow * self._integrated_flow_error < -5.0:
-                self._integrated_flow_error = -5.0 / self._ki_flow
-            if self._ki_flow * self._integrated_flow_error > 5.0:
-                self._integrated_flow_error = 5.0 / self._ki_flow
+            if self._ki_flow * self._integrated_flow_error < -10.0:
+                self._integrated_flow_error = -10.0 / self._ki_flow
+            if self._ki_flow * self._integrated_flow_error > 10.0:
+                self._integrated_flow_error = 10.0 / self._ki_flow
 
             p_flow_component = self._kp_flow * flow_error
             i_flow_component = self._ki_flow * self._integrated_flow_error

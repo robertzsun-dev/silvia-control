@@ -300,13 +300,13 @@ ExtractamundoDos = [
         ramp_time=0.0,
         maximum_time=60.0,
         transition_type=TransitionType.FLOW_OVER,
-        transition_parameter=4.0,
+        transition_parameter=3.5,
         name="6bar"
     ),
     BrewStage(
         target_temperature=93.0,
         target_type=TargetType.FLOW_WITH_PRESSURE_LIMIT,
-        target=4.0,
+        target=3.5,
         pressure_limit=6.0,
         ramp_time=0.0,
         maximum_time=60.0,
@@ -327,6 +327,42 @@ flat9 = [
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="Extract"
+    )
+]
+
+turbo = [
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FILL_TARGET_PRESSURE,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=20.0,
+        transition_type=TransitionType.PRESSURE_OVER,
+        transition_parameter=4.0,
+        name="Preinfuse"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=40.0,
+        transition_type=TransitionType.PRESSURE_UNDER,
+        transition_parameter=2.2,
+        name="DynamicBloom"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=6.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=40.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="6bar"
     )
 ]
 
@@ -686,6 +722,19 @@ oolong_concentrated = [
     )
 ]
 
+flow_test = [
+        BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FLOW,
+        target=0.8,
+        pressure_limit=6.0,
+        ramp_time=0.0,
+        maximum_time=60.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="3.5test"
+    )]
+
 brew_profiles = {
     "cleaning": cleaning,
     "lever": lever,
@@ -698,5 +747,6 @@ brew_profiles = {
     "blooming": blooming,
     "oolong_gongfu_4g": oolong_gongfu,
     "oolong_gongfu_4g_2nd": oolong_2nd,
-    "oolong_gongfu_8g": oolong_concentrated
+    "oolong_gongfu_8g": oolong_concentrated,
+    "flow_test": flow_test
 }
