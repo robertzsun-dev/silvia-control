@@ -362,14 +362,15 @@ class Boiler:
             if self._ki * self._integrated_temp_error > self.PWM_RANGE / 5.0:
                 self._integrated_temp_error = self.PWM_RANGE / (self._ki * 5.0)
 
-            if self._turbo:
-                self._p_component = self._kp_turbo * temp_error
-            else:
-                self._p_component = self._kp * temp_error
-
             self._d_component = self._kd * derivative
             self._i_component = self._ki * self._integrated_temp_error
-            u = self._p_component + self._i_component + self._d_component
+
+            if self._turbo:
+                self._p_component = self._kp_turbo * temp_error
+                # u = self.PWM_RANGE
+            else:
+                self._p_component = self._kp * temp_error
+                u = self._p_component + self._i_component + self._d_component
 
             # Saturate
             if u > self.PWM_RANGE:

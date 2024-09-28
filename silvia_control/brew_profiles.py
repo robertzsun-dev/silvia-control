@@ -736,10 +736,9 @@ flow_test = [
     )]
 
 brew_profiles = {
-    "cleaning": cleaning,
+    "londinium": londinium,
     "lever": lever,
     "cremina_lever": cremina_lever,
-    "londinium": londinium,
     "LRv3": LRv3,
     "ExtractamundoDos": ExtractamundoDos,
     "flat9": flat9,
@@ -749,5 +748,6 @@ brew_profiles = {
     "oolong_gongfu_4g": oolong_gongfu,
     "oolong_gongfu_4g_2nd": oolong_2nd,
     "oolong_gongfu_8g": oolong_concentrated,
-    "flow_test": flow_test
+    "flow_test": flow_test,
+    "cleaning": cleaning,
 }

@@ -12,6 +12,7 @@ pigpio = "^1.78"
 adafruit-circuitpython-ads1x15 = "^2.2.25"
 rpi-gpio = "^0.7.1"
 numpy = "^1.26.2"
+aiomqtt = "^2.3.0"
 
 
 [build-system]

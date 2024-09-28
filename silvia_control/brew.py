@@ -26,6 +26,8 @@ class Brew:
         self._flow_sensor = flow_sensor
         self._currently_brewing = False
         self._current_state = BrewState.IDLE
+        self._current_brew_stage_name = ""
+        self._total_time_taken = ""
 
         self._period = self.PERIOD
         return
@@ -33,6 +35,14 @@ class Brew:
     @property
     def currently_brewing(self):
         return self._current_state == BrewState.BREWING
+
+    @property
+    def current_brew_stage_name(self):
+        return self._current_brew_stage_name
+
+    @property
+    def total_time_taken(self):
+        return self._total_time_taken
 
     async def _brew(self, brew_profile: List[BrewStage], last_brew_data_table: ui.table, brew_data_rows: list):
         brew_start_time = time.monotonic()
@@ -58,6 +68,7 @@ class Brew:
 
             # Brew
             brew_stage = brew_profile[self.brew_stage_idx]
+            self._current_brew_stage_name = brew_stage.name
             self._boiler.set_target_temp(brew_stage.target_temperature)
 
             if brew_stage.target_type == TargetType.PRESSURE:
@@ -134,6 +145,10 @@ class Brew:
                 brew_data_rows[len(brew_profile)]['logs'] = txt.format(time=time.monotonic() - brew_start_time,
                                                                        volume=self._flow_sensor.get_ml)
             last_brew_data_table.update()
+
+            # Update total time taken
+            txt = "{time:.2f}"
+            self._total_time_taken = txt.format(time=time.monotonic() - brew_start_time)
 
             # Finish Brew
             if not self._pump.brew_state or self.brew_stage_idx >= len(brew_profile):

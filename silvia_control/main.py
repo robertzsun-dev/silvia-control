@@ -4,6 +4,7 @@ from nicegui import app, ui
 from devices import Thermocouple, FlowSensor, PressureSensor, Boiler, Pump, READ_PERIOD
 from brew import Brew
 from brew_profiles import brew_profiles
+from mqtt import MQTT
 
 # Instantiate Devices
 boiler_thermo = Thermocouple(1, offset=-7)
@@ -40,7 +41,7 @@ with ui.card():
     with ui.column().classes('w-full items-center'):
         with ui.row().classes('w-full items-center'):
             ui.label("Brew Profile:").classes('mr-2')
-            brew_profile_selector = ui.select(list(brew_profiles.keys()), value="lever").classes('ml-2')
+            brew_profile_selector = ui.select(list(brew_profiles.keys()), value="londinium").classes('ml-2')
         ui.label("Manual Temperature Control")
         temp_slider = ui.slider(min=0, max=120, value=boiler.setpoint)
         ui.label().bind_text_from(temp_slider, 'value')
@@ -104,7 +105,7 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
         temp_echart = ui.echart({
             'tooltip': {'trigger': 'axis'},
             'xAxis': {'type': 'value', 'name': 'Time (s)'},
-            'yAxis': {'type': 'value', 'name': 'Temperature (C)'},
+            'yAxis': [{'type': 'value', 'name': 'Temperature (C)'}, {'type': 'value', 'name': 'Boiler U'}],
             'legend': {'textStyle': {'color': 'gray'}},
             'series': [
                 {'type': 'line', 'data': [[0, boiler_thermo.temperature]],
@@ -112,7 +113,9 @@ with ui.tab_panels(tabs, value=one).classes('w-full'):
                 {'type': 'line', 'data': [[0, grouphead_thermo.temperature]],
                  'name': 'Grouphead Temp', 'smooth': "true", "symbol": "none"},
                 {'type': 'line', 'data': [[0, boiler.setpoint]],
-                 'name': 'Target Temp', 'smooth': "true", "symbol": "none"}
+                 'name': 'Target Temp', 'smooth': "true", "symbol": "none"},
+                {'type': 'line', 'yAxisIndex': 1, 'data': [[0, boiler.current_u]],
+                 'name': 'Boiler U', 'smooth': "true", "symbol": "none"}
             ],
         })
     with ui.tab_panel(three):
@@ -153,6 +156,7 @@ def set_echart_values():
         temp_echart.options['series'][0]['data'].append([new_point_time - start_time, boiler_thermo.temperature])
         temp_echart.options['series'][1]['data'].append([new_point_time - start_time, grouphead_thermo.temperature])
         temp_echart.options['series'][2]['data'].append([new_point_time - start_time, boiler.setpoint])
+        temp_echart.options['series'][3]['data'].append([new_point_time - start_time, boiler.current_u])
 
         pressure_echart.options['series'][0]['data'].append([new_point_time - start_time, pressure_sensor.pressure])
         pressure_echart.options['series'][1]['data'].append([new_point_time - start_time, pump.setpoint])
@@ -194,6 +198,7 @@ def reset_echart():
     temp_echart.options['series'][0]['data'] = [[0, boiler_thermo.temperature]]
     temp_echart.options['series'][1]['data'] = [[0, grouphead_thermo.temperature]]
     temp_echart.options['series'][2]['data'] = [[0, boiler.setpoint]]
+    temp_echart.options['series'][3]['data'] = [[0, boiler.current_u]]
 
     pressure_echart.options['series'][0]['data'] = [[0, pressure_sensor.pressure]]
     pressure_echart.options['series'][1]['data'] = [[0, pump.setpoint]]
@@ -257,6 +262,27 @@ def set_pid_component_ui():
     pump_d_circular.set_value(-pump_d)
 
 
+# # FastAPI
+# @app.get('/state')
+# def espresso_state():
+#     return {"current_profile": brew_profile_selector.value, "current_pressure": pressure_sensor.pressure,
+#             "current_pump_setpoint": pump.setpoint, "current_brew_stage": brew.current_brew_stage_name,
+#             "total_time_taken": brew.total_time_taken}
+#
+#
+# @app.get('/profiles')
+# def espresso_state():
+#     return list(brew_profiles.keys())
+#
+#
+# @app.get('/set_profile')
+# def set_state(profile: str = ""):
+#     if profile in list(brew_profiles.keys()):
+#         brew_profile_selector.set_value(profile)
+#         return True
+#     return False
+
+
 # PID Debug Display Update Loop
 ui.timer(0.1, lambda: set_pid_component_ui())
 
@@ -273,4 +299,8 @@ app.on_startup(pump.control_loop())
 app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label, last_brew_data_table, brew_data_rows,
                                         reset_echart, combined_echart))
 
-ui.run(port=80, show=False)
+# Initialize MQTT
+# mqtt = MQTT()
+# app.on_startup(mqtt.mqtt_sync(brew_profile_selector, boiler, pump, flow_sensor, pressure_sensor, brew))
+
+ui.run(port=80, show=False, title="Espresso", favicon="☕")
