@@ -38,3 +38,18 @@ class MQTT:
             except aiomqtt.MqttError:
                 print(f"Connection lost; Reconnecting in {1} seconds ...")
                 await asyncio.sleep(1)
+
+    async def mqtt_sub_profile(self, brew_profile_selector: ui.select,
+                               change_profile_data_table, brew_profile_view_table):
+        while True:
+            try:
+                async with aiomqtt.Client("127.0.0.1") as client:
+                    await client.subscribe("espresso/set_profile", qos=1)
+                    async for message in client.messages:
+                        profile = str(message.payload.decode('UTF-8'))
+                        if profile in list(brew_profile_selector.options):
+                            brew_profile_selector.set_value(profile)
+                            change_profile_data_table(brew_profile_selector.value, brew_profile_view_table)
+            except aiomqtt.MqttError:
+                print(f"Connection lost; Reconnecting in {1} seconds ...")
+                await asyncio.sleep(1)

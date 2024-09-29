@@ -53,7 +53,7 @@ def change_profile_data_table(profile_name: str, table: ui.table):
     profile_data_rows.clear()
     for stage in profile:
         profile_data_rows.append(
-            {'stage': stage.name, 'stage_info': json.dumps(dataclasses.asdict(stage), indent=4)}
+            {'stage': stage.name, 'stage_info': json.dumps(dataclasses.asdict(stage), indent=1)[1:-1]}
         )
     table.update()
 
@@ -330,5 +330,6 @@ app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label
 # Initialize MQTT
 mqtt = MQTT()
 app.on_startup(mqtt.mqtt_sync(brew_profile_selector, boiler, pump, flow_sensor, pressure_sensor, brew))
+app.on_startup(mqtt.mqtt_sub_profile(brew_profile_selector, change_profile_data_table, brew_profile_view_table))
 
 ui.run(port=80, show=False, title="Espresso", favicon="☕")
