@@ -3,20 +3,20 @@ from enum import Enum
 from dataclasses import dataclass
 
 
-class TransitionType(Enum):
-    NONE = 0
-    PRESSURE_OVER = 1
-    PRESSURE_UNDER = 2
-    FLOW_OVER = 3
-    FLOW_UNDER = 4
-    VOLUME_OVER = 5
+class TransitionType(str, Enum):
+    NONE = "NONE"
+    PRESSURE_OVER = "PRESSURE_OVER"
+    PRESSURE_UNDER = "PRESSURE_UNDER"
+    FLOW_OVER = "FLOW_OVER"
+    FLOW_UNDER = "FLOW_UNDER"
+    VOLUME_OVER = "VOLUME_OVER"
 
 
-class TargetType(Enum):
-    PRESSURE = 0
-    FLOW = 1
-    FILL = 2
-    FLOW_WITH_PRESSURE_LIMIT = 3  # uses previous stage's pressure as limit
+class TargetType(str, Enum):
+    PRESSURE = "PRESSURE"
+    FLOW = "FLOW"
+    FILL = "FILL"
+    FLOW_WITH_PRESSURE_LIMIT = "FLOW_WITH_PRESSURE_LIMIT"  # uses previous stage's pressure as limit
 
 
 @dataclass
@@ -30,10 +30,11 @@ class BrewStage:
     transition_type: TransitionType
     transition_parameter: float
     name: str
+    turbo_heating: bool
 
     def __init__(self, target_temperature: float, target_type: TargetType, target: float, pressure_limit: float,
                  ramp_time: float, maximum_time: float, transition_type: TransitionType, transition_parameter: float,
-                 name: str):
+                 name: str, turbo_heating: bool = True):
         self.target_temperature = target_temperature
         self.target_type = target_type
         self.target = target
@@ -43,6 +44,7 @@ class BrewStage:
         self.transition_type = transition_type
         self.transition_parameter = transition_parameter
         self.name = name
+        self.turbo_heating = turbo_heating
 
 
 cleaning = [
@@ -87,7 +89,7 @@ lever = [
         target_type=TargetType.PRESSURE,
         target=9.0,
         pressure_limit=0.0,
-        ramp_time=2.0,
+        ramp_time=3.0,
         maximum_time=6.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
@@ -98,8 +100,8 @@ lever = [
         target_type=TargetType.PRESSURE,
         target=4.0,
         pressure_limit=0.0,
-        ramp_time=27.5,
-        maximum_time=27.5,
+        ramp_time=38,
+        maximum_time=60,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="ExtractRampDown"
@@ -464,7 +466,7 @@ blooming = [
         target=9.0,
         pressure_limit=0.0,
         ramp_time=5.0,
-        maximum_time=10.0,
+        maximum_time=17.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="Extract"
@@ -474,8 +476,8 @@ blooming = [
         target_type=TargetType.PRESSURE,
         target=5.0,
         pressure_limit=0.0,
-        ramp_time=6.0,
-        maximum_time=30.0,
+        ramp_time=10.0,
+        maximum_time=60.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="ExtractRampDown"
@@ -503,7 +505,8 @@ oolong_gongfu = [
         maximum_time=50.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -525,7 +528,8 @@ oolong_gongfu = [
         maximum_time=45.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -547,7 +551,8 @@ oolong_gongfu = [
         maximum_time=55.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -583,7 +588,8 @@ oolong_2nd = [
         maximum_time=60.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -605,7 +611,8 @@ oolong_2nd = [
         maximum_time=70.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -627,7 +634,8 @@ oolong_2nd = [
         maximum_time=80.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -663,7 +671,8 @@ oolong_concentrated = [
         maximum_time=30.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -685,7 +694,8 @@ oolong_concentrated = [
         maximum_time=25.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -707,7 +717,8 @@ oolong_concentrated = [
         maximum_time=40.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="Infuse"
+        name="Infuse",
+        turbo_heating=False
     ),
     BrewStage(
         target_temperature=93.0,
@@ -723,7 +734,7 @@ oolong_concentrated = [
 ]
 
 flow_test = [
-        BrewStage(
+    BrewStage(
         target_temperature=93.0,
         target_type=TargetType.FLOW,
         target=0.8,

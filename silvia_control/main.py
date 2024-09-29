@@ -1,5 +1,7 @@
 import asyncio
 import time
+import json
+import dataclasses
 from nicegui import app, ui
 from devices import Thermocouple, FlowSensor, PressureSensor, Boiler, Pump, READ_PERIOD
 from brew import Brew
@@ -37,16 +39,42 @@ with ui.card():
             ui.label('Pressure (Bars)')
 
 # Brew Profile Selection
+
+# Profile Information
+profile_data_columns = [
+    {'name': 'stage', 'label': 'Stage', 'field': 'stage', 'required': True, 'align': 'left'},
+    {'name': 'stage_info', 'label': 'Info', 'field': 'stage_info', 'required': True},
+]
+profile_data_rows = []
+
+
+def change_profile_data_table(profile_name: str, table: ui.table):
+    profile = brew_profiles[profile_name]
+    profile_data_rows.clear()
+    for stage in profile:
+        profile_data_rows.append(
+            {'stage': stage.name, 'stage_info': json.dumps(dataclasses.asdict(stage), indent=4)}
+        )
+    table.update()
+
+
 with ui.card():
     with ui.column().classes('w-full items-center'):
         with ui.row().classes('w-full items-center'):
             ui.label("Brew Profile:").classes('mr-2')
             brew_profile_selector = ui.select(list(brew_profiles.keys()), value="londinium").classes('ml-2')
+        with ui.expansion('Profile Details', icon='work').classes('w-full'):
+            brew_profile_view_table = ui.table(columns=profile_data_columns, rows=profile_data_rows, row_key='stage')
         ui.label("Manual Temperature Control")
         temp_slider = ui.slider(min=0, max=120, value=boiler.setpoint)
         ui.label().bind_text_from(temp_slider, 'value')
 
 temp_slider.on('update:model-value', lambda e: boiler.set_target_temp(e.args), throttle=1.0)
+brew_profile_selector.on('update:model-value', lambda e: change_profile_data_table(e.args['label'], brew_profile_view_table))
+brew_profile_view_table.add_slot('body-cell', r'''
+            <td :props="props" :style="{'white-space':'pre-line'}">{{ props.value }}</td>
+        ''')
+change_profile_data_table(brew_profile_selector.value, brew_profile_view_table)
 
 # Brew Information
 brew_data_columns = [
@@ -286,7 +314,7 @@ def set_pid_component_ui():
 # PID Debug Display Update Loop
 ui.timer(0.1, lambda: set_pid_component_ui())
 
-# Instantiate Read Timers with UI (lol)
+# Instantiate Read Timers with UI's asyncio
 ui.timer(READ_PERIOD, lambda: boiler_temp_circular.set_value(boiler_thermo.read_temperature()))
 ui.timer(READ_PERIOD, lambda: grouphead_temp_circular.set_value(grouphead_thermo.read_temperature()))
 ui.timer(1.0 / 200.0, lambda: pressure_circular.set_value(pressure_sensor.read_pressure()))
@@ -300,7 +328,7 @@ app.on_startup(brew.monitor_brew_button(brew_profile_selector, brew_status_label
                                         reset_echart, combined_echart))
 
 # Initialize MQTT
-# mqtt = MQTT()
-# app.on_startup(mqtt.mqtt_sync(brew_profile_selector, boiler, pump, flow_sensor, pressure_sensor, brew))
+mqtt = MQTT()
+app.on_startup(mqtt.mqtt_sync(brew_profile_selector, boiler, pump, flow_sensor, pressure_sensor, brew))
 
 ui.run(port=80, show=False, title="Espresso", favicon="☕")

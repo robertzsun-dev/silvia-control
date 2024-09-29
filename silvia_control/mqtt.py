@@ -2,6 +2,7 @@ import asyncio
 from typing import List
 from enum import Enum
 import time
+import json
 
 import aiomqtt
 from nicegui import ui
@@ -20,8 +21,11 @@ class MQTT:
         while True:
             try:
                 async with aiomqtt.Client("127.0.0.1") as client:
-                    start_time = time.monotonic()
+                    # publish initial list
 
+                    brew_profiles_list = list(brew_profile_selector.options)
+                    await client.publish(topic="espresso/profile_list", payload=json.dumps(brew_profiles_list),
+                                         qos=2, retain=True)
                     while True:
                         await asyncio.gather(
                             client.publish(topic="espresso/current_profile", payload=brew_profile_selector.value),
@@ -31,10 +35,6 @@ class MQTT:
                             client.publish(topic="espresso/total_time_taken", payload=brew.total_time_taken),
                         )
 
-                        computation_time = time.monotonic() - start_time
-                        # print(computation_time)
-                        await asyncio.sleep(0.05 - computation_time)
-                        start_time = time.monotonic()
             except aiomqtt.MqttError:
                 print(f"Connection lost; Reconnecting in {1} seconds ...")
                 await asyncio.sleep(1)
