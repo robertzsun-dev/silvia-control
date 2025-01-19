@@ -76,13 +76,13 @@ lever = [
     BrewStage(
         target_temperature=93.0,
         target_type=TargetType.PRESSURE,
-        target=0.0,
+        target=2.5,
         pressure_limit=0.0,
         ramp_time=0.0,
         maximum_time=4.0,
         transition_type=TransitionType.PRESSURE_UNDER,
         transition_parameter=2.0,
-        name="PreinfuseNoPressure"
+        name="Preinfuse2.5Pressure"
     ),
     BrewStage(
         target_temperature=93.0,
@@ -105,6 +105,17 @@ lever = [
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="ExtractRampDown"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=4.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=90.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="ExtractFinal"
     )
 ]
 
@@ -123,13 +134,13 @@ cremina_lever = [
     BrewStage(
         target_temperature=93.0,
         target_type=TargetType.PRESSURE,
-        target=0.0,
+        target=2.0,
         pressure_limit=0.0,
         ramp_time=0.0,
         maximum_time=10.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="PreinfuseNoPressure"
+        name="Preinfuse2.0Pressure"
     ),
     BrewStage(
         target_temperature=93.0,
@@ -152,6 +163,17 @@ cremina_lever = [
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="ExtractRampDown"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=3.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=90.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="ExtractFinal"
     )
 ]
 
@@ -253,22 +275,44 @@ LRv3 = [
         target=5.5,
         pressure_limit=0.0,
         ramp_time=0.0,
-        maximum_time=127.0,
-        transition_type=TransitionType.FLOW_OVER,
-        transition_parameter=2.8,
+        maximum_time=1.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
         name="5BarHold"
     ),
     BrewStage(
         target_temperature=93.0,
-        target_type=TargetType.FLOW,
-        target=2.2,
+        target_type=TargetType.PRESSURE,
+        target=5.5,
         pressure_limit=0.0,
         ramp_time=0.0,
         maximum_time=127.0,
+        transition_type=TransitionType.FLOW_OVER,
+        transition_parameter=2.8,
+        name="5BarTransition"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=4.0,
+        pressure_limit=0.0,
+        ramp_time=2.0,
+        maximum_time=127.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="FlowLimit"
-    )
+        name="4BarHold"
+    ),
+#    BrewStage(
+#        target_temperature=93.0,
+#        target_type=TargetType.FLOW,
+#        target=2.2,
+#        pressure_limit=0.0,
+#        ramp_time=0.0,
+#        maximum_time=127.0,
+#        transition_type=TransitionType.NONE,
+#        transition_parameter=0.0,
+#        name="FlowLimit"
+#    )
 ]
 
 ExtractamundoDos = [
@@ -307,15 +351,26 @@ ExtractamundoDos = [
     ),
     BrewStage(
         target_temperature=93.0,
-        target_type=TargetType.FLOW_WITH_PRESSURE_LIMIT,
-        target=3.5,
-        pressure_limit=6.0,
-        ramp_time=0.0,
-        maximum_time=60.0,
+        target_type=TargetType.PRESSURE,
+        target=4.5,
+        pressure_limit=0.0,
+        ramp_time=2.5,
+        maximum_time=127.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
-        name="6bar_flow_limit"
-    )
+        name="4.5BarHold"
+    ),
+#    BrewStage(
+#        target_temperature=93.0,
+#        target_type=TargetType.FLOW_WITH_PRESSURE_LIMIT,
+#        target=3.5,
+#        pressure_limit=6.0,
+#        ramp_time=0.0,
+#        maximum_time=60.0,
+#        transition_type=TransitionType.NONE,
+#        transition_parameter=0.0,
+#        name="6bar_flow_limit"
+#    )
 ]
 
 flat9 = [
