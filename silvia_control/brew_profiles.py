@@ -705,7 +705,9 @@ oolong_2nd = [
     )
 ]
 
-oolong_concentrated = [
+
+
+oolong_gongfu_long = [
     BrewStage(
         target_temperature=94.0,
         target_type=TargetType.FILL,
@@ -723,7 +725,7 @@ oolong_concentrated = [
         target=0.0,
         pressure_limit=0.0,
         ramp_time=0.0,
-        maximum_time=30.0,
+        maximum_time=50.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="Infuse",
@@ -746,7 +748,7 @@ oolong_concentrated = [
         target=0.0,
         pressure_limit=0.0,
         ramp_time=0.0,
-        maximum_time=25.0,
+        maximum_time=45.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="Infuse",
@@ -769,7 +771,191 @@ oolong_concentrated = [
         target=0.0,
         pressure_limit=0.0,
         ramp_time=0.0,
-        maximum_time=40.0,
+        maximum_time=55.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=60.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=70.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
+        transition_type=TransitionType.NONE,
+        transition_parameter=0.0,
+        name="Infuse",
+        turbo_heating=False
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.FILL,
+        target=Pump.PUMP_FULL_ON,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=30.0,
+        transition_type=TransitionType.VOLUME_OVER,
+        transition_parameter=40.0,
+        name="Flush"
+    ),
+    BrewStage(
+        target_temperature=93.0,
+        target_type=TargetType.PRESSURE,
+        target=0.0,
+        pressure_limit=0.0,
+        ramp_time=0.0,
+        maximum_time=80.0,
         transition_type=TransitionType.NONE,
         transition_parameter=0.0,
         name="Infuse",
@@ -786,7 +972,10 @@ oolong_concentrated = [
         transition_parameter=40.0,
         name="Flush"
     )
+
+
 ]
+
 
 flow_test = [
     BrewStage(
@@ -813,7 +1002,7 @@ brew_profiles = {
     "blooming": blooming,
     "oolong_gongfu_4g": oolong_gongfu,
     "oolong_gongfu_4g_2nd": oolong_2nd,
-    "oolong_gongfu_8g": oolong_concentrated,
+    "oolong_gongfu_long": oolong_gongfu_long,
     "flow_test": flow_test,
     "cleaning": cleaning,
 }
